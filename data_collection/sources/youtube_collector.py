@@ -44,7 +44,12 @@ def search_videos(query, max_results=5):
 
     for item in data.get("items", []):
 
-        video_id = item["id"]["videoId"]
+        video_id = item.get("id", {}).get("videoId")
+
+        # Bazı sonuç öğelerinde videoId bulunmayabilir
+        # (ör. video dışı/kısıtlı bir öğe); bu öğeyi atla.
+        if not video_id:
+            continue
 
         video = {
             "video_id": video_id,
@@ -283,33 +288,34 @@ def collect_youtube_reviews(
 
             comment_text = comment["review_text"]
 
-            if is_useful_comment(comment_text):
+            # Şimdilik filtreleme yapılmıyor; ham veri toplanıyor.
+            # Temizlik/ilgi tespiti ileride enrichment aşamasında yapılacak.
 
-                review = {
-                    "review_text": comment_text,
-                    "source": "youtube_comment",
-                    "review_date": comment["review_date"],
+            review = {
+                "review_text": comment_text,
+                "source": "youtube_comment",
+                "review_date": comment["review_date"],
 
-                    "metadata": {
-                        "university_name": university_name,
+                "metadata": {
+                    "university_name": university_name,
 
-                        "video_id": video["video_id"],
+                    "video_id": video["video_id"],
 
-                        "video_title": video["title"],
+                    "video_title": video["title"],
 
-                        "video_url": video["url"],
+                    "video_url": video["url"],
 
-                        "channel_title": (
-                            video["channel_title"]
-                        ),
+                    "channel_title": (
+                        video["channel_title"]
+                    ),
 
-                        "like_count": (
-                            comment["like_count"]
-                        )
-                    }
+                    "like_count": (
+                        comment["like_count"]
+                    )
                 }
+            }
 
-                all_reviews.append(review)
+            all_reviews.append(review)
 
     return all_reviews
 
