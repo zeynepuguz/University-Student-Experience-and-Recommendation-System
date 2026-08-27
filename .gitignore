@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 data_collection/exports/
 data_collection/chroma_db/
+frontend/node_modules/
+frontend/dist/

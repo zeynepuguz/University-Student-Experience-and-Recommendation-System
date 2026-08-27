@@ -1,11 +1,20 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from database import get_connection
 from schemas import UniversityCreate
-from schemas import UniversityCreate, ReviewCreate
+from schemas import UniversityCreate, ReviewCreate, AskRequest, CompareRequest
+from data_collection.rag import ask, compare
 
 
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
@@ -115,6 +124,34 @@ def create_review(review: ReviewCreate):
         "review_text": new_review[2],
         "source": new_review[3],
         "review_date": new_review[4]
+    }
+
+
+@app.post("/ask")
+def ask_question(request: AskRequest):
+    answer = ask(
+        request.question,
+        university_name=request.university_name
+    )
+
+    return {
+        "question": request.question,
+        "university_name": request.university_name,
+        "answer": answer
+    }
+
+
+@app.post("/compare")
+def compare_universities(request: CompareRequest):
+    answer = compare(
+        request.question,
+        request.university_names
+    )
+
+    return {
+        "question": request.question,
+        "university_names": request.university_names,
+        "answer": answer
     }
 
 

@@ -92,6 +92,69 @@ def ask(question, university_name=None, n_results=8):
     return response.choices[0].message.content
 
 
+COMPARE_SYSTEM_PROMPT = """
+Sen UniGuideAI adlı bir üniversite tercih asistanısın. Görevin, gerçek
+öğrencilerin YouTube, Ekşi Sözlük ve ŞikayetVar üzerinde paylaştığı
+yorumlara dayanarak öğrenciye iki üniversiteyi karşılaştırmalı olarak
+anlatmak ve öğrencinin kendi önceliklerine göre karar vermesine
+yardımcı olmak.
+
+KURALLAR:
+- SADECE sana verilen yorum alıntılarına dayanarak konuş.
+- Yorumlarda yer almayan hiçbir bilgiyi uydurma.
+- Her üniversite için ayrı ayrı, o üniversiteye ait yorumlara dayanarak
+  değerlendirme yap; iki üniversiteyi birbirine karıştırma.
+- Bir üniversite için yeterli yorum yoksa bunu açıkça söyle.
+- Öğrencinin belirttiği önceliğe (soru) göre hangi üniversitenin daha
+  uygun görünebileceğini yorumla, ama kesin bir "kazanan" ilan etmek
+  yerine gerekçeli bir değerlendirme sun; tercih nihayetinde öğrenciye ait.
+- Cevabın sonunda hangi kaynaklardan yararlandığını kısaca belirt.
+- Türkçe, samimi ama bilgilendirici bir dille yaz.
+""".strip()
+
+
+def compare(question, university_names, n_results_per_university=6):
+    """
+    Verilen üniversiteleri, öğrencinin sorusu/önceliği ışığında
+    toplanan yorumlara dayanarak karşılaştırır.
+    """
+
+    sections = []
+
+    for university_name in university_names:
+
+        results = query_vector_store(
+            question,
+            university_name=university_name,
+            n_results=n_results_per_university
+        )
+
+        if results["documents"][0]:
+            section_body = build_context(results)
+        else:
+            section_body = "(Bu üniversite için ilgili yorum bulunamadı.)"
+
+        sections.append(f"=== {university_name} ===\n{section_body}")
+
+    context = "\n\n".join(sections)
+
+    response = client.chat.completions.create(
+        model=ANSWER_MODEL,
+        messages=[
+            {"role": "system", "content": COMPARE_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": (
+                    f"Öğrencinin sorusu/önceliği: {question}\n\n"
+                    f"Karşılaştırılacak üniversiteler:\n\n{context}"
+                )
+            }
+        ]
+    )
+
+    return response.choices[0].message.content
+
+
 def test_ask():
 
     question = "Kırklareli Üniversitesi'nde sosyal hayat ve ulaşım nasıl?"

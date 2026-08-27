@@ -14,3 +14,13 @@ class ReviewCreate(BaseModel):
     review_text: str
     source: str | None = None
     review_date: date | None = None
+
+
+class AskRequest(BaseModel):
+    question: str
+    university_name: str | None = None
+
+
+class CompareRequest(BaseModel):
+    question: str
+    university_names: list[str]
