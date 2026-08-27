@@ -86,15 +86,10 @@ def get_entries_from_page(topic_url, page):
             if not content:
                 continue
 
-            author = item.find("a", class_="entry-author")
             date = item.find("a", class_="entry-date")
 
             entries.append({
                 "text": content.get_text(" ", strip=True),
-                "author": (
-                    author.get_text(strip=True)
-                    if author else None
-                ),
                 "date": (
                     date.get_text(strip=True)
                     if date else None
@@ -147,7 +142,6 @@ def collect_web_reviews(university_name, max_pages=5):
 
             "metadata": {
                 "university_name": university_name,
-                "author": entry["author"],
                 "topic_url": topic_url
             }
         })
@@ -193,7 +187,6 @@ def test_collect_web_reviews():
         print(f"\n{index}. Girdi")
         print(f"Yorum: {review['review_text'][:150]}")
         print(f"Tarih: {review['review_date']}")
-        print(f"Yazar: {review['metadata']['author']}")
 
 
 if __name__ == "__main__":

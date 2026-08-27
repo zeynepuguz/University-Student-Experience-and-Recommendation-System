@@ -4,6 +4,7 @@ import json
 from database import get_connection
 from data_collection.sources.youtube_collector import collect_youtube_reviews
 from data_collection.sources.web_collector import collect_web_reviews
+from data_collection.sources.sikayetvar_collector import collect_sikayetvar_reviews
 
 
 def get_university_id(university_name):
@@ -297,12 +298,14 @@ def export_reviews_for_rag(
     output_path="data_collection/exports/reviews.jsonl"
 ):
     """
-    reviews tablosundaki tüm yorumları, ileride embedding/RAG
-    aşamasında kullanılabilecek LangChain Document formatına
-    (page_content + metadata) uygun tek bir .jsonl dosyasına aktarır.
+    reviews tablosundaki, review_cleaner tarafından "işe yarar"
+    (is_useful = TRUE) olarak işaretlenmiş yorumları, ileride
+    embedding/RAG aşamasında kullanılabilecek LangChain Document
+    formatına (page_content + metadata) uygun tek bir .jsonl
+    dosyasına aktarır.
 
-    Bu fonksiyon henüz enrichment veya embedding yapmaz; sadece
-    veritabanındaki temiz veriyi standart bir doküman formatına çevirir.
+    is_useful henüz NULL (hiç sınıflandırılmamış) ya da FALSE
+    (işe yaramaz) olan satırlar dışa aktarılmaz.
     """
 
     conn = get_connection()
@@ -311,6 +314,7 @@ def export_reviews_for_rag(
     cursor.execute(
         """
         SELECT
+            r.id,
             r.review_text,
             r.source,
             r.review_date,
@@ -320,6 +324,7 @@ def export_reviews_for_rag(
             u.city
         FROM reviews r
         JOIN universities u ON u.id = r.university_id
+        WHERE r.is_useful = TRUE
         ORDER BY u.id, r.id
         """
     )
@@ -339,6 +344,7 @@ def export_reviews_for_rag(
         for row in rows:
 
             (
+                review_id,
                 review_text,
                 source,
                 review_date,
@@ -351,6 +357,7 @@ def export_reviews_for_rag(
             document = {
                 "page_content": review_text,
                 "metadata": {
+                    "review_id": review_id,
                     "university_id": university_id,
                     "university_name": university_name,
                     "city": city,
@@ -485,6 +492,103 @@ def collect_web_reviews_for_all_universities(
             collect_web_reviews_for_university(
                 university_name=university_name,
                 max_pages=max_pages
+            )
+
+            processed_count += 1
+
+        except Exception as e:
+
+            print(f"\n! Hata ({university_name}): {e}")
+
+            failed_universities.append(university_name)
+
+    print("\n" + "=" * 60)
+    print("TOPLU TOPLAMA TAMAMLANDI")
+    print(f"İşlenen (yeni): {processed_count}")
+    print(f"Atlanan (zaten veri var): {skipped_count}")
+    print(f"Başarısız: {len(failed_universities)}")
+
+    if failed_universities:
+        print(f"Başarısız Üniversiteler: {failed_universities}")
+
+    print("=" * 60)
+
+
+def collect_sikayetvar_reviews_for_university(
+    university_name,
+    max_complaints=20
+):
+    """
+    Belirtilen üniversite için ŞikayetVar'dan şikayet toplar
+    ve bulunan yorumları veritabanına kaydeder.
+    """
+
+    print("\n" + "=" * 60)
+    print(f"ŞikayetVar yorumları toplanıyor: {university_name}")
+    print("=" * 60)
+
+    reviews = collect_sikayetvar_reviews(
+        university_name,
+        max_complaints=max_complaints
+    )
+
+    if not reviews:
+        print("\nKaydedilecek yorum bulunamadı.")
+        return
+
+    print(
+        f"\nToplam bulunan yorum: {len(reviews)}"
+    )
+
+    save_reviews(
+        university_name=university_name,
+        reviews=reviews
+    )
+
+
+def collect_sikayetvar_reviews_for_all_universities(
+    limit=10,
+    max_complaints=20
+):
+    """
+    Veritabanındaki üniversiteler için sırayla ŞikayetVar'dan
+    şikayet toplar.
+
+    Zaten "sikayetvar" kaynağından yorumu olan üniversiteler
+    atlanır (resume mantığı).
+
+    `limit`: bu çalıştırmada işlenecek maksimum YENİ üniversite
+    sayısı.
+    """
+
+    universities = get_all_universities()
+
+    print("\n" + "=" * 60)
+    print(f"TOPLU ŞİKAYETVAR TOPLAMA BAŞLIYOR (limit={limit})")
+    print("=" * 60)
+
+    processed_count = 0
+    skipped_count = 0
+    failed_universities = []
+
+    for university in universities:
+
+        if processed_count >= limit:
+            print(f"\nLimit doldu ({limit}), durduruluyor.")
+            break
+
+        university_id = university[0]
+        university_name = university[1]
+
+        if university_has_reviews(university_id, source="sikayetvar"):
+            skipped_count += 1
+            continue
+
+        try:
+
+            collect_sikayetvar_reviews_for_university(
+                university_name=university_name,
+                max_complaints=max_complaints
             )
 
             processed_count += 1
