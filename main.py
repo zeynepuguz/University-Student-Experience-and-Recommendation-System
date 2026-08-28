@@ -1,20 +1,47 @@
-from fastapi import FastAPI
+import os
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 from database import get_connection
-from schemas import UniversityCreate
 from schemas import UniversityCreate, ReviewCreate, AskRequest, CompareRequest
 from data_collection.rag import ask, compare
+from data_collection.vector_store import ensure_vector_store_ready
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Kalıcı disk olmayan ortamlarda (örn. ücretsiz hosting) vector
+    # store'u veritabanından yeniden kurar; doluysa dokunmaz.
+    ensure_vector_store_ready()
+    yield
 
-app = FastAPI()
+
+app = FastAPI(lifespan=lifespan)
+
+# CORS: prod'da ALLOWED_ORIGINS ortam değişkeniyle (virgülle ayrılmış)
+# ayarlanır; yoksa sadece yerel geliştirme sunucusuna izin verilir.
+allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173"
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting: /ask ve /compare her çağrıda gerçek OpenAI maliyeti
+# doğuruyor, bu yüzden IP başına sınırlandırılıyor.
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @app.get("/")
@@ -128,29 +155,31 @@ def create_review(review: ReviewCreate):
 
 
 @app.post("/ask")
-def ask_question(request: AskRequest):
+@limiter.limit("10/minute")
+def ask_question(request: Request, payload: AskRequest):
     answer = ask(
-        request.question,
-        university_name=request.university_name
+        payload.question,
+        university_name=payload.university_name
     )
 
     return {
-        "question": request.question,
-        "university_name": request.university_name,
+        "question": payload.question,
+        "university_name": payload.university_name,
         "answer": answer
     }
 
 
 @app.post("/compare")
-def compare_universities(request: CompareRequest):
+@limiter.limit("10/minute")
+def compare_universities(request: Request, payload: CompareRequest):
     answer = compare(
-        request.question,
-        request.university_names
+        payload.question,
+        payload.university_names
     )
 
     return {
-        "question": request.question,
-        "university_names": request.university_names,
+        "question": payload.question,
+        "university_names": payload.university_names,
         "answer": answer
     }
 

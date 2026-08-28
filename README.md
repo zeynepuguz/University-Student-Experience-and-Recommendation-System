@@ -88,7 +88,7 @@ UniGuideAI/
 ```bash
 python -m venv .venv
 .\.venv\Scripts\activate
-pip install fastapi uvicorn psycopg python-dotenv requests beautifulsoup4 openai chromadb
+pip install -r requirements.txt
 ```
 
 `.env` dosyası oluştur (kök dizinde):
@@ -102,6 +102,10 @@ POSTGRESQL_PASSWORD=...
 
 YOUTUBE_API_KEY=...
 OPENAI_API_KEY=...
+
+# Prod'da frontend'in gerçek adresi; boş bırakılırsa sadece
+# localhost:5173'e izin verilir.
+ALLOWED_ORIGINS=https://your-frontend.vercel.app
 ```
 
 Backend'i çalıştır:
@@ -120,6 +124,41 @@ npm run dev
 
 `http://localhost:5173` adresinde açılır, `http://127.0.0.1:8000`'deki
 backend'e bağlanır.
+
+## Canlıya alma (deployment)
+
+Proje ücretsiz katmanlarla canlıya alınabilecek şekilde tasarlandı:
+
+| Katman | Servis | Not |
+|---|---|---|
+| Veritabanı | [Neon](https://neon.tech) | Ücretsiz PostgreSQL, scale-to-zero |
+| Backend | [Render](https://render.com) (free web service) | Kalıcı disk yok — vector store, açılışta veritabanından otomatik yeniden kurulur (`ensure_vector_store_ready()`, bkz. `main.py`) |
+| Frontend | [Vercel](https://vercel.com) | Vite projelerini otomatik algılar |
+
+**Önemli — maliyet koruması:** `/ask` ve `/compare` her çağrıda gerçek
+OpenAI ücreti doğuruyor.
+
+1. OpenAI hesabında **hard spending limit** (kesin harcama tavanı) ayarla:
+   platform.openai.com → Billing → Limits.
+2. Backend'de IP başına dakikada 10 istekle sınırlı rate limiting zaten
+   aktif (`slowapi`, bkz. `main.py`).
+
+**Adımlar (özet):**
+
+1. Neon'da bir proje oluştur, `universities`/`reviews` şemasını ve mevcut
+   veriyi (pg_dump/pg_restore ya da manuel export) taşı.
+2. Render'da bu repodan bir "Web Service" oluştur:
+   - Build command: `pip install -r requirements.txt`
+   - Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - Environment variables: `.env`'deki tüm değişkenler (Neon bağlantı
+     bilgileriyle) + `ALLOWED_ORIGINS=<vercel-adresin>`
+3. Vercel'de `frontend/` klasörünü bir proje olarak içe aktar,
+   `VITE_API_URL=<render-backend-adresin>` ortam değişkenini ekle.
+
+İlk istek, backend uykudan uyanıp vector store'u yeniden kurarken
+(~1-3 dakika) yavaş olabilir; sonraki istekler normal hızda çalışır.
+
+**Canlı adres:** _(henüz deploy edilmedi — deploy edildiğinde buraya eklenecek)_
 
 ## Veri toplama pipeline'ı
 

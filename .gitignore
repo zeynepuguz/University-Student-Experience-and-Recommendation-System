@@ -6,3 +6,7 @@ data_collection/exports/
 data_collection/chroma_db/
 frontend/node_modules/
 frontend/dist/
+.agents/
+.claude/skills/neon/
+.claude/skills/neon-postgres/
+skills-lock.json

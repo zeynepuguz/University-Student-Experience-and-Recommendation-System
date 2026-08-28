@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:8000";
+// Prod'da .env.production içindeki VITE_API_URL kullanılır
+// (bkz. frontend/.env.production.example); yoksa yerel backend'e düşer.
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 function formatAnswer(text) {
   // "**kalın**" işaretlerini basitçe <strong>'a çevirir,

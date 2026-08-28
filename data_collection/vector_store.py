@@ -5,6 +5,8 @@ import chromadb
 from openai import OpenAI
 from dotenv import load_dotenv
 
+from database import get_connection
+
 
 load_dotenv()
 
@@ -48,6 +50,74 @@ def load_documents(input_path="data_collection/exports/reviews.jsonl"):
     return documents
 
 
+def load_documents_from_db():
+    """
+    "İşe yarar" (is_useful = TRUE) yorumları doğrudan veritabanından
+    okur; export_reviews_for_rag()'in ürettiği .jsonl dosyasıyla aynı
+    doküman formatını üretir. Dosyaya bağımlı olmadığı için, kalıcı
+    disk olmayan ortamlarda (örn. ücretsiz hosting) vector store'u
+    sıfırdan kurmak için kullanılır.
+    """
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            r.id,
+            r.review_text,
+            r.source,
+            r.review_date,
+            r.source_url,
+            u.id,
+            u.name,
+            u.city
+        FROM reviews r
+        JOIN universities u ON u.id = r.university_id
+        WHERE r.is_useful = TRUE
+        ORDER BY u.id, r.id
+        """
+    )
+
+    rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    documents = []
+
+    for row in rows:
+
+        (
+            review_id,
+            review_text,
+            source,
+            review_date,
+            source_url,
+            university_id,
+            university_name,
+            city
+        ) = row
+
+        documents.append({
+            "page_content": review_text,
+            "metadata": {
+                "review_id": review_id,
+                "university_id": university_id,
+                "university_name": university_name,
+                "city": city,
+                "source": source,
+                "source_url": source_url,
+                "review_date": (
+                    review_date.isoformat() if review_date else None
+                )
+            }
+        })
+
+    return documents
+
+
 def embed_texts(texts):
     """
     Bir metin listesini tek bir API çağrısında embedding'e çevirir.
@@ -61,20 +131,13 @@ def embed_texts(texts):
     return [item.embedding for item in response.data]
 
 
-def build_vector_store(
-    input_path="data_collection/exports/reviews.jsonl",
-    batch_size=100
-):
+def add_documents_to_collection(documents, collection, batch_size=100):
     """
-    .jsonl dosyasındaki dokümanları embed edip Chroma'ya kaydeder.
+    Doküman listesini embed edip verilen Chroma koleksiyonuna ekler.
 
     Zaten koleksiyonda bulunan review_id'ler atlanır (resume mantığı),
     bu sayede fonksiyon tekrar tekrar çalıştırılabilir.
     """
-
-    documents = load_documents(input_path)
-
-    collection = get_collection()
 
     print("\n" + "=" * 60)
     print(f"VECTOR STORE OLUŞTURULUYOR — Toplam doküman: {len(documents)}")
@@ -150,6 +213,56 @@ def build_vector_store(
     print(f"Atlanan (zaten vardı): {skipped_count}")
     print(f"Koleksiyondaki toplam doküman: {collection.count()}")
     print("=" * 60)
+
+
+def build_vector_store(
+    input_path="data_collection/exports/reviews.jsonl",
+    batch_size=100
+):
+    """
+    .jsonl dosyasındaki dokümanları embed edip Chroma'ya kaydeder.
+    (Yerel/manuel kullanım için — export dosyasına ihtiyaç duyar.)
+    """
+
+    documents = load_documents(input_path)
+    collection = get_collection()
+
+    add_documents_to_collection(documents, collection, batch_size)
+
+
+def build_vector_store_from_db(batch_size=100):
+    """
+    "İşe yarar" yorumları doğrudan veritabanından okuyup Chroma'ya
+    kaydeder. Dosyaya ihtiyaç duymaz; kalıcı disk sağlamayan
+    ortamlarda (örn. ücretsiz hosting) başlangıçta vector store'u
+    sıfırdan kurmak için kullanılır.
+    """
+
+    documents = load_documents_from_db()
+    collection = get_collection()
+
+    add_documents_to_collection(documents, collection, batch_size)
+
+
+def ensure_vector_store_ready():
+    """
+    Koleksiyon boşsa (örn. kalıcı disk olmayan bir ortamda taze bir
+    başlangıç yapıldıysa) veritabanından yeniden kurar. Doluysa
+    hiçbir şey yapmaz. FastAPI başlangıcında çağrılmak için tasarlandı.
+    """
+
+    collection = get_collection()
+
+    if collection.count() > 0:
+        print(
+            f"Vector store zaten dolu "
+            f"({collection.count()} doküman), yeniden kurulmuyor."
+        )
+        return
+
+    print("Vector store boş, veritabanından yeniden kuruluyor...")
+
+    build_vector_store_from_db()
 
 
 def query_vector_store(query_text, university_name=None, n_results=5):
