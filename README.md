@@ -1,5 +1,7 @@
 # UniGuideAI
 
+🔗 **Canlı adres: [university-student-experience-and-r.vercel.app](https://university-student-experience-and-r.vercel.app)**
+
 Üniversite tercihi yapacak öğrencilere yardımcı olan, **RAG (Retrieval-Augmented
 Generation) tabanlı** bir üniversite keşif ve tercih asistanı.
 
@@ -124,10 +126,6 @@ npm run dev
 
 `http://localhost:5173` adresinde açılır, `http://127.0.0.1:8000`'deki
 backend'e bağlanır.
-
-## Canlı adres
-
-🔗 **[university-student-experience-and-r.vercel.app](https://university-student-experience-and-r.vercel.app)**
 
 ## Canlıya alma (deployment)
 
