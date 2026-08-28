@@ -15,6 +15,17 @@ from data_collection.vector_store import ensure_vector_store_ready
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # GEÇİCİ DEBUG — env var'ların gerçekten Render'a ulaşıp
+    # ulaşmadığını görmek için. Sorun çözülünce kaldırılacak.
+    print("DEBUG POSTGRESQL_HOST =", repr(os.getenv("POSTGRESQL_HOST")))
+    print("DEBUG POSTGRESQL_PORT =", repr(os.getenv("POSTGRESQL_PORT")))
+    print("DEBUG POSTGRESQL_DB =", repr(os.getenv("POSTGRESQL_DB")))
+    print("DEBUG POSTGRESQL_USER =", repr(os.getenv("POSTGRESQL_USER")))
+    print(
+        "DEBUG POSTGRESQL_PASSWORD set? =",
+        os.getenv("POSTGRESQL_PASSWORD") is not None
+    )
+
     # Kalıcı disk olmayan ortamlarda (örn. ücretsiz hosting) vector
     # store'u veritabanından yeniden kurar; doluysa dokunmaz.
     ensure_vector_store_ready()
