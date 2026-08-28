@@ -125,6 +125,10 @@ npm run dev
 `http://localhost:5173` adresinde açılır, `http://127.0.0.1:8000`'deki
 backend'e bağlanır.
 
+## Canlı adres
+
+🔗 **[university-student-experience-and-r.vercel.app](https://university-student-experience-and-r.vercel.app)**
+
 ## Canlıya alma (deployment)
 
 Proje ücretsiz katmanlarla canlıya alınabilecek şekilde tasarlandı:
@@ -145,20 +149,25 @@ OpenAI ücreti doğuruyor.
 
 **Adımlar (özet):**
 
-1. Neon'da bir proje oluştur, `universities`/`reviews` şemasını ve mevcut
-   veriyi (pg_dump/pg_restore ya da manuel export) taşı.
+1. Neon'da bir proje oluştur. Yerel veriyi taşımak için
+   `data_collection/migrate_to_neon.py` kullanılabilir — `.env`'e
+   `NEON_DATABASE_URL=<neon-connection-string>` ekleyip
+   `python -m data_collection.migrate_to_neon` çalıştırılır (şema +
+   tüm veriyi otomatik taşır, pg_dump gerekmez).
 2. Render'da bu repodan bir "Web Service" oluştur:
    - Build command: `pip install -r requirements.txt`
    - Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-   - Environment variables: `.env`'deki tüm değişkenler (Neon bağlantı
-     bilgileriyle) + `ALLOWED_ORIGINS=<vercel-adresin>`
+   - Environment variables: `OPENAI_API_KEY`, `YOUTUBE_API_KEY`,
+     `NEON_DATABASE_URL` (`database.py` bunu 5 ayrı `POSTGRESQL_*`
+     değişkeninden önceliklendirir) ve `ALLOWED_ORIGINS=<vercel-adresin>`
+     (birden fazla adres virgülle ayrılabilir).
+   - `.python-version` dosyası Python sürümünü sabitliyor (chromadb'nin
+     henüz desteklemediği çok yeni sürümlerle build hatası almamak için).
 3. Vercel'de `frontend/` klasörünü bir proje olarak içe aktar,
    `VITE_API_URL=<render-backend-adresin>` ortam değişkenini ekle.
 
 İlk istek, backend uykudan uyanıp vector store'u yeniden kurarken
 (~1-3 dakika) yavaş olabilir; sonraki istekler normal hızda çalışır.
-
-**Canlı adres:** _(henüz deploy edilmedi — deploy edildiğinde buraya eklenecek)_
 
 ## Veri toplama pipeline'ı
 

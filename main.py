@@ -41,8 +41,6 @@ allowed_origins = [
     if origin.strip()
 ]
 
-print("DEBUG allowed_origins =", repr(allowed_origins))
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
