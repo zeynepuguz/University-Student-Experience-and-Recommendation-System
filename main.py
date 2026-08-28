@@ -1,4 +1,5 @@
 import os
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -7,7 +8,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from database import get_connection, DATABASE_URL
+from database import get_connection
 from schemas import UniversityCreate, ReviewCreate, AskRequest, CompareRequest
 from data_collection.rag import ask, compare
 from data_collection.vector_store import ensure_vector_store_ready
@@ -15,24 +16,13 @@ from data_collection.vector_store import ensure_vector_store_ready
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # GEÇİCİ DEBUG — env var'ların gerçekten Render'a ulaşıp
-    # ulaşmadığını görmek için. Sorun çözülünce kaldırılacak.
-    print("DEBUG DATABASE_URL kullanılıyor mu? =", DATABASE_URL is not None)
-    if DATABASE_URL:
-        # Sadece host kısmını göster (şifreyi sızdırmadan)
-        print("DEBUG DATABASE_URL host kısmı =", DATABASE_URL.split("@")[-1])
-    print("DEBUG POSTGRESQL_HOST =", repr(os.getenv("POSTGRESQL_HOST")))
-    print("DEBUG POSTGRESQL_PORT =", repr(os.getenv("POSTGRESQL_PORT")))
-    print("DEBUG POSTGRESQL_DB =", repr(os.getenv("POSTGRESQL_DB")))
-    print("DEBUG POSTGRESQL_USER =", repr(os.getenv("POSTGRESQL_USER")))
-    print(
-        "DEBUG POSTGRESQL_PASSWORD set? =",
-        os.getenv("POSTGRESQL_PASSWORD") is not None
-    )
-
     # Kalıcı disk olmayan ortamlarda (örn. ücretsiz hosting) vector
     # store'u veritabanından yeniden kurar; doluysa dokunmaz.
-    ensure_vector_store_ready()
+    #
+    # Arka planda (ayrı bir thread'de) çalıştırılıyor ki bu işlem
+    # (birkaç dakika sürebiliyor) uygulamanın portu açmasını
+    # bloklamasın — yoksa Render'ın port taraması zaman aşımına uğrar.
+    asyncio.create_task(asyncio.to_thread(ensure_vector_store_ready))
     yield
 
 
