@@ -30,10 +30,18 @@ app = FastAPI(lifespan=lifespan)
 
 # CORS: prod'da ALLOWED_ORIGINS ortam değişkeniyle (virgülle ayrılmış)
 # ayarlanır; yoksa sadece yerel geliştirme sunucusuna izin verilir.
-allowed_origins = os.getenv(
-    "ALLOWED_ORIGINS",
-    "http://localhost:5173"
-).split(",")
+# .strip() olası baştaki/sondaki boşluk ya da satır sonu karakterlerini
+# temizliyor (env var panellerinde bazen fark edilmeden eklenebiliyor).
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:5173"
+    ).split(",")
+    if origin.strip()
+]
+
+print("DEBUG allowed_origins =", repr(allowed_origins))
 
 app.add_middleware(
     CORSMiddleware,
