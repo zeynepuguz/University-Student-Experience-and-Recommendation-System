@@ -7,7 +7,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from database import get_connection
+from database import get_connection, DATABASE_URL
 from schemas import UniversityCreate, ReviewCreate, AskRequest, CompareRequest
 from data_collection.rag import ask, compare
 from data_collection.vector_store import ensure_vector_store_ready
@@ -17,6 +17,10 @@ from data_collection.vector_store import ensure_vector_store_ready
 async def lifespan(app: FastAPI):
     # GEÇİCİ DEBUG — env var'ların gerçekten Render'a ulaşıp
     # ulaşmadığını görmek için. Sorun çözülünce kaldırılacak.
+    print("DEBUG DATABASE_URL kullanılıyor mu? =", DATABASE_URL is not None)
+    if DATABASE_URL:
+        # Sadece host kısmını göster (şifreyi sızdırmadan)
+        print("DEBUG DATABASE_URL host kısmı =", DATABASE_URL.split("@")[-1])
     print("DEBUG POSTGRESQL_HOST =", repr(os.getenv("POSTGRESQL_HOST")))
     print("DEBUG POSTGRESQL_PORT =", repr(os.getenv("POSTGRESQL_PORT")))
     print("DEBUG POSTGRESQL_DB =", repr(os.getenv("POSTGRESQL_DB")))
