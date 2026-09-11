@@ -29,6 +29,8 @@ function formatAnswer(text) {
 
 function App() {
   const [universities, setUniversities] = useState([]);
+  const [universitiesLoading, setUniversitiesLoading] = useState(true);
+  const [universitiesError, setUniversitiesError] = useState(false);
   const [mode, setMode] = useState("ask");
 
   // Tek soru modu
@@ -45,10 +47,48 @@ function App() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/universities`)
-      .then((response) => response.json())
-      .then((data) => setUniversities(data))
-      .catch(() => setError("Üniversite listesi yüklenemedi."));
+    let cancelled = false;
+
+    // Render'ın ücretsiz katmanında backend inaktiflikten sonra uykuya
+    // dalıyor; uyanıp vector store'u yeniden kurması 1-3 dakika sürebilir
+    // (bkz. README). İlk istek bu yüzden başarısız olabilir ya da uzun
+    // sürebilir — kullanıcıya "bozuk" hissi vermemek için açıkça
+    // "yükleniyor" gösteriyoruz ve backend ayağa kalkana kadar arka planda
+    // birkaç kez tekrar deniyoruz.
+    async function loadUniversities(attempt = 0) {
+      try {
+        const response = await fetch(`${API_URL}/universities`);
+
+        if (!response.ok) {
+          throw new Error("Sunucu hatası");
+        }
+
+        const data = await response.json();
+
+        if (!cancelled) {
+          setUniversities(data);
+          setUniversitiesLoading(false);
+          setUniversitiesError(false);
+        }
+      } catch {
+        if (cancelled) {
+          return;
+        }
+
+        if (attempt < 6) {
+          setTimeout(() => loadUniversities(attempt + 1), 15000);
+        } else {
+          setUniversitiesLoading(false);
+          setUniversitiesError(true);
+        }
+      }
+    }
+
+    loadUniversities();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function switchMode(nextMode) {
@@ -165,14 +205,30 @@ function App() {
             <select
               value={universityName}
               onChange={(event) => setUniversityName(event.target.value)}
+              disabled={universitiesLoading}
             >
-              <option value="">Tüm üniversiteler</option>
+              <option value="">
+                {universitiesLoading
+                  ? "Üniversiteler yükleniyor..."
+                  : "Tüm üniversiteler"}
+              </option>
               {universities.map((university) => (
                 <option key={university.id} value={university.name}>
                   {university.name}
                 </option>
               ))}
             </select>
+            {universitiesLoading && (
+              <span className="hint">
+                Sunucu uykudaysa ilk açılış birkaç dakika sürebilir, lütfen
+                bekleyin.
+              </span>
+            )}
+            {universitiesError && (
+              <span className="hint hint-error">
+                Üniversite listesi yüklenemedi. Sayfayı yenilemeyi deneyin.
+              </span>
+            )}
           </label>
 
           <label className="field">
@@ -199,8 +255,11 @@ function App() {
               <select
                 value={universityA}
                 onChange={(event) => setUniversityA(event.target.value)}
+                disabled={universitiesLoading}
               >
-                <option value="">Seçiniz</option>
+                <option value="">
+                  {universitiesLoading ? "Yükleniyor..." : "Seçiniz"}
+                </option>
                 {universities.map((university) => (
                   <option key={university.id} value={university.name}>
                     {university.name}
@@ -214,8 +273,11 @@ function App() {
               <select
                 value={universityB}
                 onChange={(event) => setUniversityB(event.target.value)}
+                disabled={universitiesLoading}
               >
-                <option value="">Seçiniz</option>
+                <option value="">
+                  {universitiesLoading ? "Yükleniyor..." : "Seçiniz"}
+                </option>
                 {universities.map((university) => (
                   <option key={university.id} value={university.name}>
                     {university.name}
@@ -224,6 +286,18 @@ function App() {
               </select>
             </label>
           </div>
+
+          {universitiesLoading && (
+            <span className="hint">
+              Sunucu uykudaysa ilk açılış birkaç dakika sürebilir, lütfen
+              bekleyin.
+            </span>
+          )}
+          {universitiesError && (
+            <span className="hint hint-error">
+              Üniversite listesi yüklenemedi. Sayfayı yenilemeyi deneyin.
+            </span>
+          )}
 
           <label className="field">
             <span>Neye göre karşılaştıralım?</span>

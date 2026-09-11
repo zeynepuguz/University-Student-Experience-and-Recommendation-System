@@ -98,6 +98,21 @@ body {
   color: #111827;
 }
 
+.field select:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.hint {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #6b7280;
+}
+
+.hint-error {
+  color: #b91c1c;
+}
+
 .ask-form button {
   align-self: flex-start;
   padding: 0.6rem 1.4rem;
