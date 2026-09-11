@@ -1,6 +1,6 @@
 # UniGuideAI
 
-🔗 **Canlı adres: [university-student-experience-and-recommendation-lhkgtn2q5.vercel.app](https://university-student-experience-and-recommendation-lhkgtn2q5.vercel.app/)**
+🔗 **Canlı adres: [[university-student-experience-and-recommendation-lhkgtn2q5.vercel.app](https://university-student-experience-and-r.vercel.app/)]**
 
 
 Üniversite tercihi yapacak öğrencilere yardımcı olan, **RAG (Retrieval-Augmented
