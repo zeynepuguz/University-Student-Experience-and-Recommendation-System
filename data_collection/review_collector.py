@@ -1,5 +1,18 @@
 import os
+import sys
 import json
+
+# Windows konsolu (özellikle çıktı bir dosyaya/pipe'a yönlendirildiğinde)
+# varsayılan olarak UTF-8 dışı bir kod sayfası kullanabiliyor; bu durumda
+# toplayıcılardaki ✓/✗ gibi karakterleri print etmeye çalışmak
+# UnicodeEncodeError fırlatıyor. Bu hata, ilgili üniversite için YouTube
+# arama isteklerinin (kota harcayan kısım) tamamlanmasından SONRA,
+# sadece sonucu ekrana yazarken oluşuyor — ama yakalanıp "başarısız"
+# sayıldığı için hem kota boşa gidiyor hem de yorumlar hiç kaydedilmiyor.
+# Çıktıyı en baştan UTF-8'e zorlayarak bunu engelliyoruz.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 from database import get_connection
 from data_collection.sources.youtube_collector import collect_youtube_reviews
