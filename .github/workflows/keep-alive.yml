@@ -1,0 +1,18 @@
+name: Keep backend awake
+
+# Render'ın ücretsiz katmanı ~15 dakika istek gelmeyince backend'i
+# uykuya alıyor, sonraki istek 1-3 dakika sürebiliyor (bkz. README).
+# Bu iş, backend'i düzenli aralıklarla "dürterek" hiç uykuya
+# dalmasını engelliyor; kullanıcı isteklerinin her zaman anında
+# yanıt almasını sağlar.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend
+        run: curl -sf -m 30 https://university-student-experience-and.onrender.com/ || true

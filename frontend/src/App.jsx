@@ -75,7 +75,7 @@ function App() {
           return;
         }
 
-        if (attempt < 6) {
+        if (attempt < 12) {
           setTimeout(() => loadUniversities(attempt + 1), 15000);
         } else {
           setUniversitiesLoading(false);
