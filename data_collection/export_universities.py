@@ -15,10 +15,7 @@ Yeni üniversite eklendiğinde tekrar çalıştır:
 import json
 import os
 
-from data_collection.console import force_utf8_output
 from database import get_connection
-
-force_utf8_output()
 
 
 OUTPUT_PATH = "frontend/src/universities.json"

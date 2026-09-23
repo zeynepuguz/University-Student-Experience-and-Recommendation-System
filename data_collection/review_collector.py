@@ -1,12 +1,6 @@
 import os
 import json
 
-from data_collection.console import force_utf8_output
-
-# Toplayıcılar ✓/✗ gibi karakterler basıyor; Windows kod sayfasında
-# bunlar bulunmadığı için çıktıyı en baştan UTF-8'e sabitliyoruz.
-force_utf8_output()
-
 from database import get_connection
 from data_collection.sources.youtube_collector import collect_youtube_reviews
 from data_collection.sources.web_collector import collect_web_reviews
@@ -498,15 +492,19 @@ def collect_web_reviews_for_university(
 
 def collect_web_reviews_for_all_universities(
     limit=10,
-    max_pages=5
+    max_pages=5,
+    skip_collected=True
 ):
     """
     Veritabanındaki üniversiteler için sırayla Ekşi Sözlük'ten
     yorum toplar.
 
-    Zaten "eksisozluk" kaynağından yorumu olan üniversiteler
-    atlanır; bu hem gereksiz isteği önler hem de fonksiyonu
-    bölünerek tekrar tekrar çalıştırılabilir (resume) hale getirir.
+    `skip_collected` açıkken, zaten "eksisozluk" kaynağından yorumu
+    olan üniversiteler atlanır; bu hem gereksiz isteği önler hem de
+    fonksiyonu bölünerek tekrar tekrar çalıştırılabilir (resume) hale
+    getirir. Daha önce sığ toplanmış üniversiteleri derinleştirmek
+    (daha fazla sayfa çekmek) için False verilebilir; mükerrer
+    girdiler zaten kayıt sırasında eleniyor.
 
     `limit`: bu çalıştırmada işlenecek maksimum YENİ üniversite
     sayısı.
@@ -531,7 +529,10 @@ def collect_web_reviews_for_all_universities(
         university_id = university[0]
         university_name = university[1]
 
-        if university_has_reviews(university_id, source="eksisozluk"):
+        if skip_collected and university_has_reviews(
+            university_id,
+            source="eksisozluk"
+        ):
             skipped_count += 1
             continue
 
