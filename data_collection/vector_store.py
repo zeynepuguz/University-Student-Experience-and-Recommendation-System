@@ -246,21 +246,26 @@ def build_vector_store_from_db(batch_size=100):
 
 def ensure_vector_store_ready():
     """
-    Koleksiyon boşsa (örn. kalıcı disk olmayan bir ortamda taze bir
-    başlangıç yapıldıysa) veritabanından yeniden kurar. Doluysa
-    hiçbir şey yapmaz. FastAPI başlangıcında çağrılmak için tasarlandı.
+    Vector store'u veritabanıyla eşitler. FastAPI başlangıcında
+    çağrılmak için tasarlandı.
+
+    Eskiden yalnızca koleksiyon tamamen boşsa kuruyordu; bu, kalıcı
+    disk olmayan ortamda taze başlangıcı çözüyor ama veritabanına
+    sonradan eklenen yorumların canlıya hiç ulaşmaması anlamına
+    geliyordu (koleksiyon dolu olduğu için hiçbir şey yapılmıyordu).
+    Artık her başlangıçta eksik dokümanlar ekleniyor:
+    add_documents_to_collection zaten koleksiyonda bulunan
+    review_id'leri atladığı için, mevcut dokümanlar yeniden
+    embed edilmiyor — yani ek OpenAI maliyeti sadece gerçekten yeni
+    olan yorumlar kadar.
     """
 
     collection = get_collection()
 
-    if collection.count() > 0:
-        print(
-            f"Vector store zaten dolu "
-            f"({collection.count()} doküman), yeniden kurulmuyor."
-        )
-        return
-
-    print("Vector store boş, veritabanından yeniden kuruluyor...")
+    print(
+        f"Vector store veritabanıyla eşitleniyor "
+        f"(mevcut doküman: {collection.count()})..."
+    )
 
     build_vector_store_from_db()
 
