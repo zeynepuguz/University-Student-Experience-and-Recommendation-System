@@ -53,7 +53,7 @@ React Frontend
 | ŞikayetVar | 999 | 170 |
 | **Toplam** | **30.333** | **201** |
 
-17.521 yorum LLM ile "işe yarar" olarak sınıflandırıldı ve RAG'e giriyor; 5.718 yorum henüz sınıflandırılmayı bekliyor.
+21.581 yorum LLM ile "işe yarar" olarak sınıflandırıldı ve RAG'e giriyor.
 
 201/202 üniversitede en az bir kaynaktan yorum var.
 
