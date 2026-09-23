@@ -1,23 +1,17 @@
 import os
-import sys
 import json
 
-# Windows konsolu (özellikle çıktı bir dosyaya/pipe'a yönlendirildiğinde)
-# varsayılan olarak UTF-8 dışı bir kod sayfası kullanabiliyor; bu durumda
-# toplayıcılardaki ✓/✗ gibi karakterleri print etmeye çalışmak
-# UnicodeEncodeError fırlatıyor. Bu hata, ilgili üniversite için YouTube
-# arama isteklerinin (kota harcayan kısım) tamamlanmasından SONRA,
-# sadece sonucu ekrana yazarken oluşuyor — ama yakalanıp "başarısız"
-# sayıldığı için hem kota boşa gidiyor hem de yorumlar hiç kaydedilmiyor.
-# Çıktıyı en baştan UTF-8'e zorlayarak bunu engelliyoruz.
-for _stream in (sys.stdout, sys.stderr):
-    if hasattr(_stream, "reconfigure"):
-        _stream.reconfigure(encoding="utf-8", errors="replace")
+from data_collection.console import force_utf8_output
+
+# Toplayıcılar ✓/✗ gibi karakterler basıyor; Windows kod sayfasında
+# bunlar bulunmadığı için çıktıyı en baştan UTF-8'e sabitliyoruz.
+force_utf8_output()
 
 from database import get_connection
 from data_collection.sources.youtube_collector import collect_youtube_reviews
 from data_collection.sources.web_collector import collect_web_reviews
 from data_collection.sources.sikayetvar_collector import collect_sikayetvar_reviews
+from data_collection.sources.uludag_collector import collect_uludag_reviews
 
 
 def get_university_id(university_name):
@@ -144,6 +138,13 @@ def save_reviews(university_name, reviews):
     """
     Bir üniversiteye ait birden fazla yorumu
     veritabanına kaydeder.
+
+    Tüm yorumlar tek bir bağlantı üzerinden yazılıyor: yorum başına
+    ayrı bağlantı açmak (mükerrer kontrolü için bir, insert için bir
+    tane daha) uzak veritabanında toplama süresini dakikalardan
+    saatlere çıkarıyordu. Mükerrer kontrolü de yorum başına sorgu
+    yerine, üniversitenin mevcut yorumlarını tek seferde okuyup
+    bellekte karşılaştırarak yapılıyor.
     """
 
     university_id = get_university_id(university_name)
@@ -157,36 +158,70 @@ def save_reviews(university_name, reviews):
         f"| ID: {university_id}"
     )
 
-    saved_count = 0
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT review_text
+        FROM reviews
+        WHERE university_id = %s
+        """,
+        (university_id,)
+    )
+
+    existing_texts = {row[0] for row in cursor.fetchall()}
+
+    new_rows = []
     skipped_count = 0
 
     for review in reviews:
 
         review_text = review.get("review_text")
-        source = review.get("source")
-        review_date = review.get("review_date")
-        metadata = review.get("metadata", {})
-        source_url = metadata.get("video_url") or metadata.get("topic_url")
 
         if not review_text:
             continue
 
-        if review_exists(university_id, review_text):
+        # Aynı çalıştırmada iki kez gelen yorumlar da elensin diye
+        # kaydedilenler mevcutlar kümesine ekleniyor.
+        if review_text in existing_texts:
             skipped_count += 1
             continue
 
-        add_review(
-            university_id=university_id,
-            review_text=review_text,
-            source=source,
-            review_date=review_date,
-            source_url=source_url
+        existing_texts.add(review_text)
+
+        metadata = review.get("metadata", {})
+
+        new_rows.append((
+            university_id,
+            review_text,
+            review.get("source"),
+            review.get("review_date"),
+            metadata.get("video_url") or metadata.get("topic_url")
+        ))
+
+    if new_rows:
+        cursor.executemany(
+            """
+            INSERT INTO reviews (
+                university_id,
+                review_text,
+                source,
+                review_date,
+                source_url
+            )
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            new_rows
         )
 
-        saved_count += 1
+        conn.commit()
+
+    cursor.close()
+    conn.close()
 
     print(
-        f"✓ {saved_count} yorum başarıyla kaydedildi."
+        f"✓ {len(new_rows)} yorum başarıyla kaydedildi."
     )
 
     if skipped_count:
@@ -615,6 +650,109 @@ def collect_sikayetvar_reviews_for_all_universities(
     print("\n" + "=" * 60)
     print("TOPLU TOPLAMA TAMAMLANDI")
     print(f"İşlenen (yeni): {processed_count}")
+    print(f"Atlanan (zaten veri var): {skipped_count}")
+    print(f"Başarısız: {len(failed_universities)}")
+
+    if failed_universities:
+        print(f"Başarısız Üniversiteler: {failed_universities}")
+
+    print("=" * 60)
+
+
+def collect_uludag_reviews_for_university(
+    university_name,
+    max_pages=5
+):
+    """
+    Belirtilen üniversite için Uludağ Sözlük'ten girdi toplar
+    ve bulunan yorumları veritabanına kaydeder.
+    """
+
+    print("\n" + "=" * 60)
+    print(f"Uludağ Sözlük yorumları toplanıyor: {university_name}")
+    print("=" * 60)
+
+    reviews = collect_uludag_reviews(
+        university_name,
+        max_pages=max_pages
+    )
+
+    if not reviews:
+        print("\nKaydedilecek yorum bulunamadı.")
+        return
+
+    print(
+        f"\nToplam bulunan yorum: {len(reviews)}"
+    )
+
+    save_reviews(
+        university_name=university_name,
+        reviews=reviews
+    )
+
+
+def collect_uludag_reviews_for_all_universities(
+    limit=10,
+    max_pages=5,
+    skip_collected=True
+):
+    """
+    Veritabanındaki üniversiteler için sırayla Uludağ Sözlük'ten
+    girdi toplar.
+
+    `skip_collected` açıkken, zaten "uludagsozluk" kaynağından yorumu
+    olan üniversiteler atlanır (resume mantığı). Daha önce sığ
+    toplanmış (az sayfa çekilmiş) üniversiteleri derinleştirmek için
+    False verilebilir; mükerrer girdiler zaten kayıt sırasında
+    eleniyor.
+
+    `limit`: bu çalıştırmada işlenecek maksimum üniversite sayısı.
+    """
+
+    universities = get_all_universities()
+
+    print("\n" + "=" * 60)
+    print(f"TOPLU ULUDAĞ SÖZLÜK TOPLAMA BAŞLIYOR (limit={limit})")
+    print("=" * 60)
+
+    processed_count = 0
+    skipped_count = 0
+    failed_universities = []
+
+    for university in universities:
+
+        if processed_count >= limit:
+            print(f"\nLimit doldu ({limit}), durduruluyor.")
+            break
+
+        university_id = university[0]
+        university_name = university[1]
+
+        if skip_collected and university_has_reviews(
+            university_id,
+            source="uludagsozluk"
+        ):
+            skipped_count += 1
+            continue
+
+        try:
+
+            collect_uludag_reviews_for_university(
+                university_name=university_name,
+                max_pages=max_pages
+            )
+
+            processed_count += 1
+
+        except Exception as e:
+
+            print(f"\n! Hata ({university_name}): {e}")
+
+            failed_universities.append(university_name)
+
+    print("\n" + "=" * 60)
+    print("TOPLU TOPLAMA TAMAMLANDI")
+    print(f"İşlenen: {processed_count}")
     print(f"Atlanan (zaten veri var): {skipped_count}")
     print(f"Başarısız: {len(failed_universities)}")
 
