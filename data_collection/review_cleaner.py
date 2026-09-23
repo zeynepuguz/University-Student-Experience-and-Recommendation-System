@@ -1,5 +1,6 @@
 import os
 import json
+from concurrent.futures import ThreadPoolExecutor
 
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -98,15 +99,14 @@ def update_is_useful(results):
     conn = get_connection()
     cursor = conn.cursor()
 
-    for review_id, is_useful in results:
-        cursor.execute(
-            """
-            UPDATE reviews
-            SET is_useful = %s
-            WHERE id = %s
-            """,
-            (is_useful, review_id)
-        )
+    cursor.executemany(
+        """
+        UPDATE reviews
+        SET is_useful = %s
+        WHERE id = %s
+        """,
+        [(is_useful, review_id) for review_id, is_useful in results]
+    )
 
     conn.commit()
 
@@ -166,51 +166,66 @@ def classify_batch(reviews):
     return results
 
 
-def clean_all_reviews(batch_size=40, limit=None):
+def clean_all_reviews(batch_size=40, limit=None, workers=4):
     """
     Veritabanındaki sınıflandırılmamış tüm yorumları gruplar
     halinde modele gönderip is_useful alanını doldurur.
+
+    Gruplar `workers` kadar eşzamanlı işlenir: istek süresinin
+    neredeyse tamamı modelin yanıtını beklemekle geçtiği için,
+    sırayla çalıştırmak on binlerce yorumda saatler sürüyor.
+    Bir grup hata alırsa o gruptaki yorumlar sınıflandırılmamış
+    kalır; fonksiyon tekrar çalıştırıldığında yeniden denenirler.
     """
 
     reviews = get_unclassified_reviews(limit=limit)
 
+    batches = [
+        reviews[start:start + batch_size]
+        for start in range(0, len(reviews), batch_size)
+    ]
+
     print("\n" + "=" * 60)
-    print(f"TEMİZLİK BAŞLIYOR — Sınıflandırılacak yorum: {len(reviews)}")
+    print(
+        f"TEMİZLİK BAŞLIYOR — Sınıflandırılacak yorum: {len(reviews)} "
+        f"({len(batches)} grup, {workers} paralel)"
+    )
     print("=" * 60)
 
-    total_useful = 0
-    total_not_useful = 0
-    batch_count = 0
+    def process_batch(numbered_batch):
 
-    for start in range(0, len(reviews), batch_size):
-
-        batch = reviews[start:start + batch_size]
-
-        batch_count += 1
-
-        print(
-            f"\nGrup {batch_count} işleniyor "
-            f"({start + 1}-{start + len(batch)} / {len(reviews)})"
-        )
+        batch_number, batch = numbered_batch
 
         try:
             results = classify_batch(batch)
         except Exception as e:
-            print(f"! Hata (grup {batch_count}): {e}")
-            continue
+            print(f"! Hata (grup {batch_number}): {e}")
+            return 0, 0
 
         update_is_useful(results)
 
         useful_count = sum(1 for _, is_useful in results if is_useful)
         not_useful_count = len(results) - useful_count
 
-        total_useful += useful_count
-        total_not_useful += not_useful_count
-
         print(
-            f"  ✓ işe yarar: {useful_count} "
+            f"Grup {batch_number}/{len(batches)} "
+            f"| ✓ işe yarar: {useful_count} "
             f"| ✗ işe yaramaz: {not_useful_count}"
         )
+
+        return useful_count, not_useful_count
+
+    total_useful = 0
+    total_not_useful = 0
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+
+        for useful_count, not_useful_count in pool.map(
+            process_batch,
+            enumerate(batches, start=1)
+        ):
+            total_useful += useful_count
+            total_not_useful += not_useful_count
 
     print("\n" + "=" * 60)
     print("TEMİZLİK TAMAMLANDI")
