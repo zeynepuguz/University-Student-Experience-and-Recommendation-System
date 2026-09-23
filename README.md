@@ -49,11 +49,11 @@ React Frontend
 |---|---:|---:|
 | Ekşi Sözlük | 15.048 | 195 |
 | Uludağ Sözlük | 7.731 | 170 |
-| YouTube | 6.338 | 70 |
+| YouTube | 6.555 | 73 |
 | ŞikayetVar | 999 | 170 |
-| **Toplam** | **30.117** | **201** |
+| **Toplam** | **30.333** | **201** |
 
-17.521 yorum LLM ile "işe yarar" olarak sınıflandırıldı ve RAG'e giriyor; 5.502 yorum henüz sınıflandırılmayı bekliyor.
+17.521 yorum LLM ile "işe yarar" olarak sınıflandırıldı ve RAG'e giriyor; 5.718 yorum henüz sınıflandırılmayı bekliyor.
 
 201/202 üniversitede en az bir kaynaktan yorum var.
 

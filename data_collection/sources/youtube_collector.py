@@ -224,10 +224,18 @@ def collect_youtube_reviews(
 
         print(f"\nAranıyor: {query}")
 
-        videos = search_videos(
-            query=query,
-            max_results=max_videos_per_query
-        )
+        # Günlük kota genellikle bir üniversitenin ortasında bitiyor.
+        # Hatayı buradan yukarı bırakırsak o ana kadar yapılmış
+        # aramalar (kotası çoktan harcanmış olanlar) da çöpe gidiyor;
+        # bunun yerine aramayı kesip elimizdekiyle devam ediyoruz.
+        try:
+            videos = search_videos(
+                query=query,
+                max_results=max_videos_per_query
+            )
+        except Exception as e:
+            print(f"Arama durduruldu ({query}): {e}")
+            break
 
         for video in videos:
 
