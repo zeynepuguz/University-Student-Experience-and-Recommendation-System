@@ -21,7 +21,8 @@ bunu açıkça belirtir, bilgi uydurmaz.
 Üniversiteler (PostgreSQL)
         │
         ▼
-Veri Toplama (YouTube API, Ekşi Sözlük, ŞikayetVar — scraping)
+Veri Toplama (YouTube API, Ekşi Sözlük, Uludağ Sözlük,
+                ŞikayetVar — scraping)
         │
         ▼
 PostgreSQL (reviews tablosu, ham yorumlar)
@@ -44,12 +45,15 @@ React Frontend
 
 ## Mevcut veri durumu
 
-| Kaynak | Yorum sayısı |
-|---|---|
-| Ekşi Sözlük | 7104 |
-| YouTube | 2678 |
-| ŞikayetVar | 999 |
-| **Toplam** | **10.781** (7652'si "işe yarar" olarak sınıflandırıldı) |
+| Kaynak | Yorum sayısı | Üniversite |
+|---|---:|---:|
+| Ekşi Sözlük | 15.048 | 195 |
+| Uludağ Sözlük | 7.731 | 170 |
+| YouTube | 6.338 | 70 |
+| ŞikayetVar | 999 | 170 |
+| **Toplam** | **30.117** | **201** |
+
+17.521 yorum LLM ile "işe yarar" olarak sınıflandırıldı ve RAG'e giriyor; 5.502 yorum henüz sınıflandırılmayı bekliyor.
 
 201/202 üniversitede en az bir kaynaktan yorum var.
 
@@ -61,6 +65,7 @@ UniGuideAI/
 │   ├── sources/
 │   │   ├── youtube_collector.py     # YouTube Data API v3
 │   │   ├── web_collector.py         # Ekşi Sözlük scraping
+│   │   ├── uludag_collector.py      # Uludağ Sözlük scraping
 │   │   ├── sikayetvar_collector.py  # ŞikayetVar scraping
 │   │   └── ...                      # (Instagram/TikTok/X/Facebook: kullanılmıyor,
 │   │                                  bkz. proje notları — genel arama API'si yok)
@@ -69,6 +74,8 @@ UniGuideAI/
 │   ├── query_generator.py # üniversite başına arama sorguları üretir
 │   ├── review_collector.py # toplama, kaydetme, dedup, export orkestrasyonu
 │   ├── review_cleaner.py  # LLM ile is_useful sınıflandırması
+│   ├── export_universities.py # üniversite listesini frontend'e gömer
+│   ├── console.py         # konsol çıktısını UTF-8'e sabitler
 │   ├── vector_store.py    # embedding + ChromaDB
 │   ├── rag.py              # RAG sorgu/karşılaştırma fonksiyonları
 │   ├── chroma_db/          # (gitignore'da) kalıcı vector store
@@ -78,7 +85,9 @@ UniGuideAI/
 │   └── search_engine.py    # (henüz boş, planlanan genel web keşfi)
 │
 ├── frontend/                 # React + Vite arayüzü
+│   └── src/universities.json   # (üretilen) gömülü üniversite listesi
 ├── main.py                  # FastAPI backend
+├── answer_cache.py           # üretilen cevapların önbelleği
 ├── schemas.py                # Pydantic şemaları
 ├── database.py                # PostgreSQL bağlantısı
 └── .env                        # (git'e gönderilmez)
@@ -109,6 +118,13 @@ OPENAI_API_KEY=...
 # Prod'da frontend'in gerçek adresi; boş bırakılırsa sadece
 # localhost:5173'e izin verilir.
 ALLOWED_ORIGINS=https://your-frontend.vercel.app
+
+# Opsiyonel — IP başına soru limiti (varsayılan: 5/minute;40/day)
+ASK_RATE_LIMIT=5/minute;40/day
+
+# Opsiyonel — önbellekteki cevabın kaç gün sonra eskimiş sayılacağı
+# (varsayılan: 30)
+ANSWER_CACHE_TTL_DAYS=30
 ```
 
 Backend'i çalıştır:
@@ -139,12 +155,17 @@ Proje ücretsiz katmanlarla canlıya alınabilecek şekilde tasarlandı:
 | Frontend | [Vercel](https://vercel.com) | Vite projelerini otomatik algılar |
 
 **Önemli — maliyet koruması:** `/ask` ve `/compare` her çağrıda gerçek
-OpenAI ücreti doğuruyor.
+OpenAI ücreti doğuruyor (soru başına yaklaşık 1 cent).
 
 1. OpenAI hesabında **hard spending limit** (kesin harcama tavanı) ayarla:
    platform.openai.com → Billing → Limits.
-2. Backend'de IP başına dakikada 10 istekle sınırlı rate limiting zaten
-   aktif (`slowapi`, bkz. `main.py`).
+2. Backend'de IP başına rate limiting aktif (`slowapi`, bkz. `main.py`):
+   varsayılan `5/minute;40/day`. Günlük tavan, tek bir ziyaretçinin gün
+   boyu istek atıp faturayı uçurmasını engelliyor.
+3. Üretilen cevaplar veritabanında önbellekleniyor (`answer_cache.py`):
+   aynı soru + aynı üniversite(ler) tekrar sorulduğunda modele hiç
+   gidilmiyor. Soru normalize edildiği için yazım farkları
+   ("Yurtlar nasıl?" / "yurtlar  nasıl?") aynı kayda düşüyor.
 
 **Adımlar (özet):**
 
@@ -176,8 +197,9 @@ Her adım ayrı ayrı, elle çalıştırılır (henüz tek bir otomatik script y
 # 1. YouTube'dan yorum topla (günlük API kotası: ~search sorgusu başına sınırlı)
 python -m data_collection.review_collector
 
-# 2. Ekşi Sözlük / ŞikayetVar toplu toplama (kota yok, tek seferde bitirilebilir)
+# 2. Sözlük / şikayet siteleri toplu toplama (kota yok, tek seferde bitirilebilir)
 python -c "from data_collection.review_collector import collect_web_reviews_for_all_universities; collect_web_reviews_for_all_universities(limit=202)"
+python -c "from data_collection.review_collector import collect_uludag_reviews_for_all_universities; collect_uludag_reviews_for_all_universities(limit=202)"
 python -c "from data_collection.review_collector import collect_sikayetvar_reviews_for_all_universities; collect_sikayetvar_reviews_for_all_universities(limit=202)"
 
 # 3. Yeni toplanan yorumları LLM ile temizle
@@ -193,6 +215,21 @@ python -m data_collection.vector_store
 Tüm toplama fonksiyonları **resume** mantığıyla çalışır: bir üniversite için
 belirli bir kaynaktan zaten yorum varsa o üniversite otomatik atlanır, bu
 yüzden fonksiyonlar güvenle tekrar tekrar çalıştırılabilir.
+
+Sözlük toplayıcılarında bu atlama `skip_collected=False` ile kapatılabilir;
+daha önce az sayfa çekilmiş bir üniversiteyi `max_pages` değerini artırarak
+derinleştirmek için kullanılır (mükerrer girdiler kayıt sırasında eleniyor):
+
+```bash
+python -c "from data_collection.review_collector import collect_web_reviews_for_all_universities; collect_web_reviews_for_all_universities(limit=202, max_pages=15, skip_collected=False)"
+```
+
+Veritabanına yeni bir üniversite eklendiğinde, frontend'e gömülü listeyi de
+yenile (bkz. `frontend/src/universities.json`):
+
+```bash
+python -m data_collection.export_universities
+```
 
 ## API uç noktaları
 

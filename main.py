@@ -9,6 +9,12 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from database import get_connection
+from answer_cache import (
+    build_key,
+    ensure_table,
+    get_cached_answer,
+    store_answer
+)
 from schemas import UniversityCreate, ReviewCreate, AskRequest, CompareRequest
 from data_collection.rag import ask, compare
 from data_collection.vector_store import ensure_vector_store_ready
@@ -22,6 +28,8 @@ async def lifespan(app: FastAPI):
     # Arka planda (ayrı bir thread'de) çalıştırılıyor ki bu işlem
     # (birkaç dakika sürebiliyor) uygulamanın portu açmasını
     # bloklamasın — yoksa Render'ın port taraması zaman aşımına uğrar.
+    ensure_table()
+
     asyncio.create_task(asyncio.to_thread(ensure_vector_store_ready))
     yield
 
@@ -49,7 +57,12 @@ app.add_middleware(
 )
 
 # Rate limiting: /ask ve /compare her çağrıda gerçek OpenAI maliyeti
-# doğuruyor, bu yüzden IP başına sınırlandırılıyor.
+# doğuruyor, bu yüzden IP başına sınırlandırılıyor. Dakikalık limitin
+# yanına günlük bir tavan da konuyor: dakikada 10 istek, gün boyu
+# sürdürülürse tek bir ziyaretçi bile faturayı uçurabiliyor.
+# ASK_RATE_LIMIT ile ortam değişkeninden ayarlanabilir.
+ASK_RATE_LIMIT = os.getenv("ASK_RATE_LIMIT", "5/minute;40/day")
+
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -166,12 +179,24 @@ def create_review(review: ReviewCreate):
 
 
 @app.post("/ask")
-@limiter.limit("10/minute")
+@limiter.limit(ASK_RATE_LIMIT)
 def ask_question(request: Request, payload: AskRequest):
-    answer = ask(
-        payload.question,
-        university_name=payload.university_name
-    )
+    cache_key = build_key(payload.question, [payload.university_name])
+
+    answer = get_cached_answer(cache_key)
+
+    if answer is None:
+        answer = ask(
+            payload.question,
+            university_name=payload.university_name
+        )
+
+        store_answer(
+            cache_key,
+            payload.question,
+            [payload.university_name],
+            answer
+        )
 
     return {
         "question": payload.question,
@@ -181,12 +206,24 @@ def ask_question(request: Request, payload: AskRequest):
 
 
 @app.post("/compare")
-@limiter.limit("10/minute")
+@limiter.limit(ASK_RATE_LIMIT)
 def compare_universities(request: Request, payload: CompareRequest):
-    answer = compare(
-        payload.question,
-        payload.university_names
-    )
+    cache_key = build_key(payload.question, payload.university_names)
+
+    answer = get_cached_answer(cache_key)
+
+    if answer is None:
+        answer = compare(
+            payload.question,
+            payload.university_names
+        )
+
+        store_answer(
+            cache_key,
+            payload.question,
+            payload.university_names,
+            answer
+        )
 
     return {
         "question": payload.question,
