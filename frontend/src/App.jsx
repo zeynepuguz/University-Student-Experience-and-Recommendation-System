@@ -1,9 +1,35 @@
 import { useEffect, useState } from "react";
 import "./App.css";
+import universitiesSnapshot from "./universities.json";
 
 // Prod'da .env.production içindeki VITE_API_URL kullanılır
 // (bkz. frontend/.env.production.example); yoksa yerel backend'e düşer.
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
+// Üniversite listesi pratikte sabit bir veri, ama backend'den çekiliyordu:
+// Render'ın ücretsiz katmanı backend'i uykuya aldığı için bu istek 1-3
+// dakika sürebiliyor ve o süre boyunca açılır liste boş kalıyordu. Liste
+// artık build'e gömülü (universities.json, `python -m
+// data_collection.export_universities` ile üretilir), yani backend'in
+// durumundan bağımsız olarak anında dolu geliyor. Taze liste yine de arka
+// planda çekilip üzerine yazılıyor, böylece yeni eklenen bir üniversite
+// build beklemeden görünür.
+const CACHE_KEY = "uniguide.universities";
+
+function readCachedUniversities() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    const parsed = cached ? JSON.parse(cached) : null;
+
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
+    }
+  } catch {
+    // Bozuk/erişilemeyen cache önemli değil, gömülü listeye düşeriz.
+  }
+
+  return universitiesSnapshot;
+}
 
 function formatAnswer(text) {
   // "**kalın**" işaretlerini basitçe <strong>'a çevirir,
@@ -28,9 +54,7 @@ function formatAnswer(text) {
 }
 
 function App() {
-  const [universities, setUniversities] = useState([]);
-  const [universitiesLoading, setUniversitiesLoading] = useState(true);
-  const [universitiesError, setUniversitiesError] = useState(false);
+  const [universities, setUniversities] = useState(readCachedUniversities);
   const [mode, setMode] = useState("ask");
 
   // Tek soru modu
@@ -49,13 +73,11 @@ function App() {
   useEffect(() => {
     let cancelled = false;
 
-    // Render'ın ücretsiz katmanında backend inaktiflikten sonra uykuya
-    // dalıyor; uyanıp vector store'u yeniden kurması 1-3 dakika sürebilir
-    // (bkz. README). İlk istek bu yüzden başarısız olabilir ya da uzun
-    // sürebilir — kullanıcıya "bozuk" hissi vermemek için açıkça
-    // "yükleniyor" gösteriyoruz ve backend ayağa kalkana kadar arka planda
-    // birkaç kez tekrar deniyoruz.
-    async function loadUniversities(attempt = 0) {
+    // Liste zaten ekranda; bu istek sadece taze veriyi almak için. Backend
+    // uykudaysa uyanması 1-3 dakika sürebildiğinden birkaç kez tekrar
+    // deniyoruz, ama kullanıcıya hiçbir bekleme/hata göstermiyoruz —
+    // başarısız olsa bile gömülü liste kullanılmaya devam eder.
+    async function refreshUniversities(attempt = 0) {
       try {
         const response = await fetch(`${API_URL}/universities`);
 
@@ -65,26 +87,25 @@ function App() {
 
         const data = await response.json();
 
-        if (!cancelled) {
-          setUniversities(data);
-          setUniversitiesLoading(false);
-          setUniversitiesError(false);
-        }
-      } catch {
-        if (cancelled) {
+        if (cancelled || !Array.isArray(data) || data.length === 0) {
           return;
         }
 
-        if (attempt < 12) {
-          setTimeout(() => loadUniversities(attempt + 1), 15000);
-        } else {
-          setUniversitiesLoading(false);
-          setUniversitiesError(true);
+        setUniversities(data);
+
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        } catch {
+          // Kota dolu ya da depolama kapalıysa sorun değil.
+        }
+      } catch {
+        if (!cancelled && attempt < 12) {
+          setTimeout(() => refreshUniversities(attempt + 1), 15000);
         }
       }
     }
 
-    loadUniversities();
+    refreshUniversities();
 
     return () => {
       cancelled = true;
@@ -205,30 +226,14 @@ function App() {
             <select
               value={universityName}
               onChange={(event) => setUniversityName(event.target.value)}
-              disabled={universitiesLoading}
             >
-              <option value="">
-                {universitiesLoading
-                  ? "Üniversiteler yükleniyor..."
-                  : "Tüm üniversiteler"}
-              </option>
+              <option value="">Tüm üniversiteler</option>
               {universities.map((university) => (
                 <option key={university.id} value={university.name}>
                   {university.name}
                 </option>
               ))}
             </select>
-            {universitiesLoading && (
-              <span className="hint">
-                Sunucu uykudaysa ilk açılış birkaç dakika sürebilir, lütfen
-                bekleyin.
-              </span>
-            )}
-            {universitiesError && (
-              <span className="hint hint-error">
-                Üniversite listesi yüklenemedi. Sayfayı yenilemeyi deneyin.
-              </span>
-            )}
           </label>
 
           <label className="field">
@@ -255,11 +260,8 @@ function App() {
               <select
                 value={universityA}
                 onChange={(event) => setUniversityA(event.target.value)}
-                disabled={universitiesLoading}
               >
-                <option value="">
-                  {universitiesLoading ? "Yükleniyor..." : "Seçiniz"}
-                </option>
+                <option value="">Seçiniz</option>
                 {universities.map((university) => (
                   <option key={university.id} value={university.name}>
                     {university.name}
@@ -273,11 +275,8 @@ function App() {
               <select
                 value={universityB}
                 onChange={(event) => setUniversityB(event.target.value)}
-                disabled={universitiesLoading}
               >
-                <option value="">
-                  {universitiesLoading ? "Yükleniyor..." : "Seçiniz"}
-                </option>
+                <option value="">Seçiniz</option>
                 {universities.map((university) => (
                   <option key={university.id} value={university.name}>
                     {university.name}
@@ -286,18 +285,6 @@ function App() {
               </select>
             </label>
           </div>
-
-          {universitiesLoading && (
-            <span className="hint">
-              Sunucu uykudaysa ilk açılış birkaç dakika sürebilir, lütfen
-              bekleyin.
-            </span>
-          )}
-          {universitiesError && (
-            <span className="hint hint-error">
-              Üniversite listesi yüklenemedi. Sayfayı yenilemeyi deneyin.
-            </span>
-          )}
 
           <label className="field">
             <span>Neye göre karşılaştıralım?</span>
