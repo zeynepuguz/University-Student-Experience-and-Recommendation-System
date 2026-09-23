@@ -122,8 +122,6 @@ def collect_web_reviews(university_name, max_pages=5):
 
     print(f"Konu bulundu: {topic_url}")
 
-    all_reviews = []
-
     entries, page_count = get_entries_from_page(topic_url, 1)
 
     pages_to_fetch = min(page_count, max_pages)
@@ -133,9 +131,8 @@ def collect_web_reviews(university_name, max_pages=5):
         f"| çekilecek sayfa: {pages_to_fetch}"
     )
 
-    for entry in entries:
-
-        all_reviews.append({
+    def to_review(entry):
+        return {
             "review_text": entry["text"],
             "source": "eksisozluk",
             "review_date": parse_entry_date(entry["date"]),
@@ -144,7 +141,9 @@ def collect_web_reviews(university_name, max_pages=5):
                 "university_name": university_name,
                 "topic_url": topic_url
             }
-        })
+        }
+
+    all_reviews = [to_review(entry) for entry in entries]
 
     for page in range(2, pages_to_fetch + 1):
 
@@ -152,19 +151,7 @@ def collect_web_reviews(university_name, max_pages=5):
 
         page_entries, _ = get_entries_from_page(topic_url, page)
 
-        for entry in page_entries:
-
-            all_reviews.append({
-                "review_text": entry["text"],
-                "source": "eksisozluk",
-                "review_date": parse_entry_date(entry["date"]),
-
-                "metadata": {
-                    "university_name": university_name,
-                    "author": entry["author"],
-                    "topic_url": topic_url
-                }
-            })
+        all_reviews.extend(to_review(entry) for entry in page_entries)
 
     return all_reviews
 
