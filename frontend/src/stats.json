@@ -1,0 +1,25 @@
+{
+  "totalReviews": 31379,
+  "usefulReviews": 22195,
+  "universitiesCovered": 201,
+  "totalUniversities": 202,
+  "sources": [
+    {
+      "label": "Ekşi Sözlük",
+      "count": 15048
+    },
+    {
+      "label": "Uludağ Sözlük",
+      "count": 7731
+    },
+    {
+      "label": "YouTube",
+      "count": 7601
+    },
+    {
+      "label": "ŞikayetVar",
+      "count": 999
+    }
+  ],
+  "updatedAt": "2026-09-24"
+}

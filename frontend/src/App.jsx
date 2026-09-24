@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import universitiesSnapshot from "./universities.json";
+import stats from "./stats.json";
 
 // Prod'da .env.production içindeki VITE_API_URL kullanılır
 // (bkz. frontend/.env.production.example); yoksa yerel backend'e düşer.
@@ -10,7 +11,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 // Render'ın ücretsiz katmanı backend'i uykuya aldığı için bu istek 1-3
 // dakika sürebiliyor ve o süre boyunca açılır liste boş kalıyordu. Liste
 // artık build'e gömülü (universities.json, `python -m
-// data_collection.export_universities` ile üretilir), yani backend'in
+// data_collection.export_frontend_data` ile üretilir), yani backend'in
 // durumundan bağımsız olarak anında dolu geliyor. Taze liste yine de arka
 // planda çekilip üzerine yazılıyor, böylece yeni eklenen bir üniversite
 // build beklemeden görünür.
@@ -51,6 +52,60 @@ function formatAnswer(text) {
       </p>
     );
   });
+}
+
+function formatCount(value) {
+  return value.toLocaleString("tr-TR");
+}
+
+function AboutSection() {
+  // Sayılar veritabanından üretiliyor (stats.json, bkz.
+  // `python -m data_collection.export_frontend_data`); elle yazılsa
+  // her veri toplamasından sonra eskirdi.
+  const [year, month, day] = stats.updatedAt.split("-");
+
+  return (
+    <details className="about">
+      <summary>Bu nasıl çalışıyor?</summary>
+
+      <div className="about-body">
+        <p>
+          Bu asistan, öğrencilerin internette paylaştığı{" "}
+          <strong>{formatCount(stats.totalReviews)} gerçek yorumu</strong>{" "}
+          topladı. {stats.totalUniversities} üniversitenin{" "}
+          {stats.universitiesCovered}'inde en az bir yorum var.
+        </p>
+
+        <ul className="about-sources">
+          {stats.sources.map((source) => (
+            <li key={source.label}>
+              {source.label}
+              <span>{formatCount(source.count)}</span>
+            </li>
+          ))}
+        </ul>
+
+        <p>
+          Bir soru sorduğunda, soruyla en ilgili yorumlar bulunur ve cevap{" "}
+          <strong>yalnızca o yorumlara dayanılarak</strong> yazılır.
+          Yorumlarda geçmeyen bilgi eklenmez; eldeki yorumlar soruyu
+          cevaplamaya yetmiyorsa asistan bunu açıkça söyler.
+        </p>
+
+        <p className="about-caveat">
+          <strong>Dikkat:</strong> Bu yorumlar öğrencilerin kişisel
+          görüşleridir, resmî bilgi değildir. Farklı tarihlerde yazıldıkları
+          için güncelliğini yitirmiş olabilirler ve bazı üniversitelerde
+          yorum sayısı azdır. Tercih kararını verirken tek kaynak olarak
+          kullanma.
+        </p>
+
+        <p className="about-updated">
+          Veriler son güncelleme: {day}.{month}.{year}
+        </p>
+      </div>
+    </details>
+  );
 }
 
 function App() {
@@ -201,6 +256,8 @@ function App() {
         <h1>UniGuideAI</h1>
         <p>Gerçek öğrenci yorumlarına dayalı üniversite asistanı</p>
       </header>
+
+      <AboutSection />
 
       <div className="mode-tabs">
         <button

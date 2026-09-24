@@ -49,11 +49,11 @@ React Frontend
 |---|---:|---:|
 | Ekşi Sözlük | 15.048 | 195 |
 | Uludağ Sözlük | 7.731 | 170 |
-| YouTube | 6.555 | 73 |
+| YouTube | 7.601 | 87 |
 | ŞikayetVar | 999 | 170 |
-| **Toplam** | **30.333** | **201** |
+| **Toplam** | **31.379** | **201** |
 
-21.581 yorum LLM ile "işe yarar" olarak sınıflandırıldı ve RAG'e giriyor.
+22.195 yorum LLM ile "işe yarar" olarak sınıflandırıldı ve RAG'e giriyor.
 
 201/202 üniversitede en az bir kaynaktan yorum var.
 
@@ -74,7 +74,7 @@ UniGuideAI/
 │   ├── query_generator.py # üniversite başına arama sorguları üretir
 │   ├── review_collector.py # toplama, kaydetme, dedup, export orkestrasyonu
 │   ├── review_cleaner.py  # LLM ile is_useful sınıflandırması
-│   ├── export_universities.py # üniversite listesini frontend'e gömer
+│   ├── export_frontend_data.py # üniversite listesi + veri sayılarını frontend'e gömer
 │   ├── console.py         # konsol çıktısını UTF-8'e sabitler
 │   ├── vector_store.py    # embedding + ChromaDB
 │   ├── rag.py              # RAG sorgu/karşılaştırma fonksiyonları
@@ -85,7 +85,8 @@ UniGuideAI/
 │   └── search_engine.py    # (henüz boş, planlanan genel web keşfi)
 │
 ├── frontend/                 # React + Vite arayüzü
-│   └── src/universities.json   # (üretilen) gömülü üniversite listesi
+│   ├── src/universities.json   # (üretilen) gömülü üniversite listesi
+│   └── src/stats.json          # (üretilen) 'Bu nasıl çalışıyor?' sayıları
 ├── main.py                  # FastAPI backend
 ├── answer_cache.py           # üretilen cevapların önbelleği
 ├── schemas.py                # Pydantic şemaları
@@ -252,7 +253,7 @@ Veritabanına yeni bir üniversite eklendiğinde, frontend'e gömülü listeyi d
 yenile (bkz. `frontend/src/universities.json`):
 
 ```bash
-python -m data_collection.export_universities
+python -m data_collection.export_frontend_data
 ```
 
 ## API uç noktaları

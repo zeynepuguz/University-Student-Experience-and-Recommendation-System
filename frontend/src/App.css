@@ -150,3 +150,69 @@ body {
 .answer p:last-child {
   margin-bottom: 0;
 }
+
+/* "Bu nasıl çalışıyor?" — varsayılan olarak kapalı; formu aşağı
+   itmeden, merak edene verinin kaynağını ve sınırlarını anlatıyor. */
+.about {
+  margin: -1rem 0 1.25rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f9fafb;
+  font-size: 0.9rem;
+}
+
+.about summary {
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: #4f46e5;
+  list-style-position: inside;
+}
+
+.about summary:hover {
+  text-decoration: underline;
+}
+
+.about-body {
+  padding: 0 1rem 1rem;
+  color: #374151;
+  line-height: 1.55;
+}
+
+.about-body p {
+  margin: 0 0 0.75rem;
+}
+
+.about-sources {
+  list-style: none;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.about-sources li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.about-sources span {
+  font-variant-numeric: tabular-nums;
+  color: #6b7280;
+}
+
+.about-caveat {
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #78350f;
+}
+
+.about-updated {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
