@@ -188,6 +188,30 @@ OpenAI ücreti doğuruyor (soru başına yaklaşık 1 cent).
 
 İlk istek, backend uykudan uyanıp vector store'u yeniden kurarken
 (~1-3 dakika) yavaş olabilir; sonraki istekler normal hızda çalışır.
+`.github/workflows/keep-alive.yml` backend'i 10 dakikada bir dürterek
+uykuya dalmasını engelliyor, yani bu bekleme normalde yaşanmamalı.
+
+### Sorun giderme: üniversite listesi geç geliyorsa
+
+Açılır listenin dolması backend'i bekliyorsa (boş liste, birkaç saniyeden
+uzun süren açılış), bu **yayındaki frontend build'inin eskidiğini** gösterir.
+Liste `frontend/src/universities.json` üzerinden build'e gömülü olduğu için
+güncel bir build'de backend hiç beklenmez — backend tamamen kapalıyken bile
+liste anında dolu gelir.
+
+Kontrol etmenin en hızlı yolu, yayındaki JavaScript paketinde üniversite
+adlarının geçip geçmediğine bakmak:
+
+```bash
+# Paket adını bul, içinde bir üniversite adı ara.
+# Sonuç 0 ise yayındaki build gömülü listeyi içermiyor demektir.
+curl -s https://<frontend-adresin>/ | grep -o 'assets/index-[^"]*\.js'
+curl -s https://<frontend-adresin>/assets/index-XXXX.js | grep -c "Üniversitesi"
+```
+
+Böyle bir durumda Vercel → **Deployments** kısmında son commit'in yeni bir
+deployment üretip üretmediğine bakılır; üretmediyse GitHub bağlantısı,
+"Ready" değilse build hatası incelenir.
 
 ## Veri toplama pipeline'ı
 
