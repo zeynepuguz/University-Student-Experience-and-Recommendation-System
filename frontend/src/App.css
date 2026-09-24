@@ -57,6 +57,18 @@ body {
 
 .compare-row .field {
   flex: 1;
+  /* Flex öğeleri varsayılan olarak içeriklerinden dar olamıyor
+     (min-width: auto). Açılır listenin doğal genişliği en uzun
+     üniversite adı kadar olduğu için, bu olmadan ikinci alan
+     formun dışına taşıyor. */
+  min-width: 0;
+}
+
+/* Dar ekranda iki üniversite yan yana sığmıyor. */
+@media (max-width: 560px) {
+  .compare-row {
+    flex-direction: column;
+  }
 }
 
 .ask-form {
@@ -85,6 +97,8 @@ body {
 .field select,
 .field textarea {
   font: inherit;
+  width: 100%;
+  box-sizing: border-box;
   padding: 0.6rem 0.75rem;
   border: 1px solid #d1d5db;
   border-radius: 8px;
