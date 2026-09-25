@@ -1,218 +1,632 @@
-html {
-  color-scheme: light;
-}
-
-body {
-  background: #ffffff;
-  margin: 0;
-}
-
 .page {
-  max-width: 680px;
+  width: 100%;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 2.5rem 1.5rem 4rem;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: #111827;
-  background: #ffffff;
+  padding: 64px 24px 80px;
+  color: var(--text);
+}
+
+/* =========================
+   Header
+   ========================= */
+
+.header {
+  text-align: center;
+  margin-bottom: 32px;
 }
 
 .header h1 {
   margin: 0;
-  font-size: 1.8rem;
-  color: #111827;
+  color: var(--text);
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  line-height: 1.1;
+  font-weight: 750;
+  letter-spacing: -0.04em;
 }
 
 .header p {
-  margin: 0.25rem 0 2rem;
-  color: #6b7280;
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
-.mode-tabs {
+/* =========================
+   About
+   ========================= */
+
+.about {
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.about summary {
+  padding: 15px 18px;
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 0.95rem;
+  font-weight: 650;
+  text-align: center;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.about summary:hover {
+  background: var(--surface-soft);
+}
+
+.about summary::marker {
+  color: var(--primary);
+}
+
+.about-body {
+  padding: 0 20px 20px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.about-body p {
+  margin: 0 0 14px;
+}
+
+.about-sources {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.about-sources li {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.about-sources span {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.about-caveat {
+  padding: 13px 15px;
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-sm);
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+.about-updated {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* =========================
+   Mode tabs
+   ========================= */
+
+.mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .mode-tabs button {
-  flex: 1;
-  padding: 0.55rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: #f9fafb;
-  color: #374151;
-  font-weight: 600;
+  min-height: 48px;
+  padding: 0 18px;
+
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+
+  background: var(--surface);
+  color: var(--text-secondary);
+
+  font-size: 0.95rem;
+  font-weight: 650;
+
   cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.1s ease;
+}
+
+.mode-tabs button:hover {
+  border-color: #c7c9d4;
+  background: var(--surface-soft);
+}
+
+.mode-tabs button:active {
+  transform: translateY(1px);
 }
 
 .mode-tabs button.active {
-  background: #4f46e5;
-  border-color: #4f46e5;
-  color: white;
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.18);
 }
 
-.compare-row {
-  display: flex;
-  gap: 1rem;
-}
-
-.compare-row .field {
-  flex: 1;
-  /* Flex öğeleri varsayılan olarak içeriklerinden dar olamıyor
-     (min-width: auto). Açılır listenin doğal genişliği en uzun
-     üniversite adı kadar olduğu için, bu olmadan ikinci alan
-     formun dışına taşıyor. */
-  min-width: 0;
-}
-
-/* Dar ekranda iki üniversite yan yana sığmıyor. */
-@media (max-width: 560px) {
-  .compare-row {
-    flex-direction: column;
-  }
-}
+/* =========================
+   Form
+   ========================= */
 
 .ask-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  background: #ffffff;
-  color: #111827;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1.25rem;
+  gap: 22px;
+
+  padding: 28px;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 8px;
+
+  min-width: 0;
+
   font-size: 0.9rem;
 }
 
-.field span {
-  font-weight: 600;
-  color: #374151;
+.field > label,
+.field > span,
+.field > label span {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 650;
 }
 
 .field select,
 .field textarea {
-  font: inherit;
   width: 100%;
   box-sizing: border-box;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  resize: vertical;
+
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+
   background: #ffffff;
-  color: #111827;
+  color: var(--text);
+
+  outline: none;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.field select {
+  min-height: 46px;
+  padding: 0 12px;
+}
+
+.field textarea {
+  min-height: 110px;
+  padding: 12px 13px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.field select:hover,
+.field textarea:hover {
+  border-color: #b9bbc6;
+}
+
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.field textarea::placeholder {
+  color: #9a9aa8;
 }
 
 .field select option {
   background: #ffffff;
-  color: #111827;
+  color: var(--text);
 }
 
-.ask-form button {
+/* =========================
+   Compare
+   ========================= */
+
+.compare-row {
+  display: flex;
+  gap: 16px;
+}
+
+.compare-row .field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* =========================
+   Submit button
+   ========================= */
+
+.ask-form > button {
   align-self: flex-start;
-  padding: 0.6rem 1.4rem;
-  border: none;
-  border-radius: 8px;
-  background: #4f46e5;
-  color: white;
-  font-weight: 600;
+
+  min-height: 44px;
+  padding: 0 22px;
+
+  border: 0;
+  border-radius: var(--radius-sm);
+
+  background: var(--primary);
+  color: #ffffff;
+
+  font-size: 0.9rem;
+  font-weight: 650;
+
   cursor: pointer;
+
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.16);
+
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.1s ease;
 }
 
-.ask-form button:disabled {
+.ask-form > button:hover:not(:disabled) {
+  background: var(--primary-hover);
+  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.2);
+}
+
+.ask-form > button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.ask-form > button:disabled {
   opacity: 0.6;
   cursor: default;
+  box-shadow: none;
 }
+
+/* =========================
+   Error
+   ========================= */
 
 .error {
-  margin-top: 1rem;
-  color: #b91c1c;
+  margin: 16px 0 0;
+  padding: 12px 14px;
+
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+
+  background: #fef2f2;
+  color: var(--danger);
+
+  font-size: 0.9rem;
 }
 
+/* =========================
+   Answer
+   ========================= */
+
 .answer {
-  margin-top: 1.5rem;
-  padding: 1.25rem 1.5rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  line-height: 1.6;
-  background: #ffffff;
-  color: #111827;
+  margin-top: 24px;
+  padding: 24px 26px;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.answer::before {
+  content: "UniGuideAI";
+  display: block;
+
+  margin-bottom: 14px;
+
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .answer p {
-  margin: 0 0 0.9rem;
+  margin: 0 0 14px;
 }
 
 .answer p:last-child {
   margin-bottom: 0;
 }
 
-/* "Bu nasıl çalışıyor?" — varsayılan olarak kapalı; formu aşağı
-   itmeden, merak edene verinin kaynağını ve sınırlarını anlatıyor. */
-.about {
-  margin: -1rem 0 1.25rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  background: #f9fafb;
+.answer strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* =========================
+   Responsive
+   ========================= */
+
+@media (max-width: 640px) {
+  .page {
+    max-width: 100%;
+    padding: 40px 16px 56px;
+  }
+
+  .header {
+    margin-bottom: 26px;
+  }
+
+  .header h1 {
+    font-size: 2rem;
+  }
+
+  .header p {
+    font-size: 0.92rem;
+  }
+
+  .ask-form {
+    padding: 20px;
+    border-radius: var(--radius-md);
+  }
+
+  .answer {
+    padding: 20px;
+    border-radius: var(--radius-md);
+  }
+}
+
+@media (max-width: 560px) {
+  .compare-row {
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .mode-tabs button {
+    min-height: 46px;
+  }
+}
+
+@media (max-width: 400px) {
+  .page {
+    padding-inline: 12px;
+  }
+
+  .ask-form {
+    padding: 16px;
+  }
+
+  .mode-tabs {
+    gap: 6px;
+  }
+
+  .mode-tabs button {
+    padding-inline: 10px;
+    font-size: 0.85rem;
+  }
+}
+
+/* =========================
+   University Picker
+   ========================= */
+
+.picker {
+  position: relative;
+  width: 100%;
+}
+
+.picker-input {
+  width: 100%;
+  height: 46px;
+  box-sizing: border-box;
+
+  padding: 0 44px 0 13px;
+
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+
+  background: #ffffff;
+  color: var(--text);
+
+  outline: none;
+
+  cursor: text;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.picker-input:hover {
+  border-color: #b9bbc6;
+}
+
+.picker-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.picker-input::placeholder {
+  color: #8f909e;
+}
+
+.picker-arrow {
+  position: absolute;
+  top: 0;
+  right: 0;
+
+  width: 44px;
+  height: 46px;
+
+  border: 0;
+  background: transparent;
+
+  color: var(--text-secondary);
+
+  cursor: pointer;
+}
+
+.arrow {
+  display: inline-block;
+  font-size: 20px;
+  line-height: 1;
+
+  transition: transform 0.2s ease;
+}
+
+.arrow.open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown */
+
+.picker-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+
+  width: 100%;
+
+  z-index: 1000;
+
+  overflow: hidden;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: #ffffff;
+
+  box-shadow:
+    0 12px 30px rgba(15, 23, 42, 0.12),
+    0 4px 10px rgba(15, 23, 42, 0.06);
+}
+
+/* Search */
+
+.picker-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 10px;
+
+  border-bottom: 1px solid var(--border);
+
+  background: var(--surface-soft);
+}
+
+.picker-search span {
+  color: var(--text-muted);
+  font-size: 18px;
+}
+
+.picker-search input {
+  width: 100%;
+
+  border: 0;
+  outline: none;
+
+  background: transparent;
+  color: var(--text);
+
   font-size: 0.9rem;
 }
 
-.about summary {
-  padding: 0.7rem 1rem;
-  cursor: pointer;
-  font-weight: 600;
-  color: #4f46e5;
-  list-style-position: inside;
+.picker-search input::placeholder {
+  color: var(--text-muted);
 }
 
-.about summary:hover {
-  text-decoration: underline;
-}
+/* List */
 
-.about-body {
-  padding: 0 1rem 1rem;
-  color: #374151;
-  line-height: 1.55;
-}
+.picker-list {
+  max-height: 280px;
 
-.about-body p {
-  margin: 0 0 0.75rem;
-}
-
-.about-sources {
-  list-style: none;
-  margin: 0 0 0.9rem;
-  padding: 0;
-  border-top: 1px solid #e5e7eb;
-}
-
-.about-sources li {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.35rem 0;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.about-sources span {
-  font-variant-numeric: tabular-nums;
-  color: #6b7280;
-}
-
-.about-caveat {
-  padding: 0.7rem 0.85rem;
-  border-radius: 8px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #78350f;
-}
-
-.about-updated {
   margin: 0;
-  font-size: 0.8rem;
-  color: #6b7280;
+  padding: 6px;
+
+  overflow-y: auto;
+
+  list-style: none;
+}
+
+.picker-list li {
+  padding: 10px 12px;
+
+  border-radius: 7px;
+
+  color: var(--text);
+
+  font-size: 0.9rem;
+  line-height: 1.35;
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.picker-list li:hover,
+.picker-list li.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.picker-list li[aria-selected="true"] {
+  font-weight: 650;
+}
+
+.picker-empty {
+  padding: 18px 12px !important;
+
+  color: var(--text-muted) !important;
+
+  text-align: center;
+
+  cursor: default !important;
+  background: transparent !important;
+}
+
+/* Scrollbar */
+
+.picker-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.picker-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.picker-list::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  background: #d1d5db;
+}
+
+.picker-list::-webkit-scrollbar-thumb:hover {
+  background: #b9bbc6;
 }
