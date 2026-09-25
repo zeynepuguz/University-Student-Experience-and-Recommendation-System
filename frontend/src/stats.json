@@ -1,6 +1,6 @@
 {
-  "totalReviews": 31379,
-  "usefulReviews": 22195,
+  "totalReviews": 32406,
+  "usefulReviews": 22808,
   "universitiesCovered": 201,
   "totalUniversities": 202,
   "sources": [
@@ -9,17 +9,17 @@
       "count": 15048
     },
     {
-      "label": "Uludağ Sözlük",
-      "count": 7731
+      "label": "YouTube",
+      "count": 8628
     },
     {
-      "label": "YouTube",
-      "count": 7601
+      "label": "Uludağ Sözlük",
+      "count": 7731
     },
     {
       "label": "ŞikayetVar",
       "count": 999
     }
   ],
-  "updatedAt": "2026-09-24"
+  "updatedAt": "2026-09-25"
 }

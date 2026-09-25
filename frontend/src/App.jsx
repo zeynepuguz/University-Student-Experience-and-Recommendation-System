@@ -66,7 +66,7 @@ function AboutSection() {
 
   return (
     <details className="about">
-      <summary>Bu nasıl çalışıyor?</summary>
+      <summary>Asistanımız nasıl çalışıyor?</summary>
 
       <div className="about-body">
         <p>

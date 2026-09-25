@@ -9,8 +9,9 @@ Frontend'in build'e gömdüğü anlık görüntüleri üretir.
   boyunca liste boş kalıyordu. Gömülü olunca backend'in durumundan
   bağımsız olarak anında dolu geliyor.
 
-- stats.json — "Bu nasıl çalışıyor?" bölümündeki veri sayıları. Elle
-  yazılsa her toplamadan sonra eskiyeceği için veritabanından üretiliyor.
+- stats.json — "Asistanımız nasıl çalışıyor?" bölümündeki veri sayıları.
+  Elle yazılsa her toplamadan sonra eskiyeceği için veritabanından
+  üretiliyor.
 
 Veri değiştikten sonra tekrar çalıştır:
     python -m data_collection.export_frontend_data

@@ -48,12 +48,12 @@ React Frontend
 | Kaynak | Yorum sayısı | Üniversite |
 |---|---:|---:|
 | Ekşi Sözlük | 15.048 | 195 |
+| YouTube | 8.628 | 101 |
 | Uludağ Sözlük | 7.731 | 170 |
-| YouTube | 7.601 | 87 |
 | ŞikayetVar | 999 | 170 |
-| **Toplam** | **31.379** | **201** |
+| **Toplam** | **32.406** | **201** |
 
-22.195 yorum LLM ile "işe yarar" olarak sınıflandırıldı ve RAG'e giriyor.
+22.808 yorum LLM ile "işe yarar" olarak sınıflandırıldı ve RAG'e giriyor.
 
 201/202 üniversitede en az bir kaynaktan yorum var.
 
@@ -86,7 +86,7 @@ UniGuideAI/
 │
 ├── frontend/                 # React + Vite arayüzü
 │   ├── src/universities.json   # (üretilen) gömülü üniversite listesi
-│   └── src/stats.json          # (üretilen) 'Bu nasıl çalışıyor?' sayıları
+│   └── src/stats.json          # (üretilen) bilgilendirme bölümünün sayıları
 ├── main.py                  # FastAPI backend
 ├── answer_cache.py           # üretilen cevapların önbelleği
 ├── schemas.py                # Pydantic şemaları
