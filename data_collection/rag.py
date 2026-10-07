@@ -14,6 +14,11 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 ANSWER_MODEL = "gpt-5.6-terra"
 
+# Hiç ilgili yorum bulunamadığında modele gidilmeden dönen cevap.
+# main.py bunu önbelleğe yazmıyor: yorum havuzu büyüdükçe ya da vector
+# store kurulumu bitince aynı soru gerçek bir cevap alabilir.
+NO_REVIEWS_ANSWER = "Bu konuda elimde yeterli yorum bulunmuyor."
+
 SYSTEM_PROMPT = """
 Sen UniGuideAI adlı bir üniversite tercih asistanısın. Görevin, gerçek
 öğrencilerin YouTube, Ekşi Sözlük ve ŞikayetVar üzerinde paylaştığı
@@ -72,7 +77,7 @@ def ask(question, university_name=None, n_results=8):
     )
 
     if not results["documents"][0]:
-        return "Bu konuda elimde yeterli yorum bulunmuyor."
+        return NO_REVIEWS_ANSWER
 
     context = build_context(results)
 

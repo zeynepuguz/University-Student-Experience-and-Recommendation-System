@@ -1,5 +1,6 @@
 import os
 import json
+import threading
 import time
 
 import chromadb
@@ -274,7 +275,24 @@ def ensure_vector_store_ready():
         f"(mevcut doküman: {collection.count()})..."
     )
 
-    build_vector_store_from_db()
+    try:
+        build_vector_store_from_db()
+    finally:
+        _ready.set()
+
+
+# Kalıcı disk olmayan ortamda her açılışta koleksiyon boş başlıyor ve
+# kurulum birkaç dakika sürüyor. Bu sürede gelen sorular, yorumları
+# henüz eklenmemiş üniversiteler için "yeterli yorum yok" cevabı
+# alıyordu (ve bu yanlış cevap önbelleğe yazılıyordu). main.py bu
+# bayrağa bakıp kurulum bitene kadar "hazırlanıyor" diyor.
+_ready = threading.Event()
+
+
+def is_ready():
+    """Açılıştaki vector store eşitlemesi bittiyse True."""
+
+    return _ready.is_set()
 
 
 def query_vector_store(query_text, university_name=None, n_results=5):

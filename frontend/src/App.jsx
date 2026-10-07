@@ -49,6 +49,21 @@ function formatAnswer(text) {
   });
 }
 
+// Cevap alınamadığında kullanıcıya gösterilen mesaj.
+// 503: backend yeni açıldı, yorumlar hâlâ yükleniyor.
+// 429: IP başına soru limiti doldu.
+function errorMessage(status) {
+  if (status === 503) {
+    return "Asistan hazırlanıyor, 1-2 dakika sonra tekrar dene.";
+  }
+
+  if (status === 429) {
+    return "Çok fazla soru sordun, biraz sonra tekrar dene.";
+  }
+
+  return "Bir şeyler ters gitti. Backend çalışıyor mu kontrol et.";
+}
+
 function formatCount(value) {
   return value.toLocaleString("tr-TR");
 }
@@ -541,9 +556,7 @@ function App() {
       // 429: rate limit'e takıldı.
       track("answer_failed", { mode: "ask", status });
 
-      setError(
-        "Bir şeyler ters gitti. Backend çalışıyor mu kontrol et."
-      );
+      setError(errorMessage(status));
     } finally {
       setLoading(false);
     }
@@ -612,9 +625,7 @@ function App() {
     } catch {
       track("answer_failed", { mode: "compare", status });
 
-      setError(
-        "Bir şeyler ters gitti. Backend çalışıyor mu kontrol et."
-      );
+      setError(errorMessage(status));
     } finally {
       setLoading(false);
     }

@@ -3,7 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 
 import sentry_sdk
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -18,8 +18,8 @@ from answer_cache import (
     store_answer
 )
 from schemas import UniversityCreate, ReviewCreate, AskRequest, CompareRequest
-from data_collection.rag import ask, compare
-from data_collection.vector_store import ensure_vector_store_ready
+from data_collection.rag import ask, compare, NO_REVIEWS_ANSWER
+from data_collection.vector_store import ensure_vector_store_ready, is_ready
 
 
 # Hata takibi: SENTRY_DSN tanımlıysa yakalanmayan her hata (500'ler,
@@ -49,6 +49,20 @@ def remember_visitor(request: Request):
     visitor = request.headers.get("x-client-id")
 
     usage_tracking.client_id.set(visitor[:100] if visitor else None)
+
+
+def require_vector_store():
+    """
+    Açılıştaki vector store kurulumu bitmeden önbellekte olmayan bir
+    soruya cevap üretilmiyor: yorumları henüz eklenmemiş üniversiteler
+    için "yeterli yorum yok" gibi yanlış bir cevap çıkıyordu.
+    """
+
+    if not is_ready():
+        raise HTTPException(
+            status_code=503,
+            detail="Asistan hazırlanıyor, 1-2 dakika sonra tekrar dene."
+        )
 
 
 @asynccontextmanager
@@ -225,17 +239,20 @@ def ask_question(request: Request, payload: AskRequest):
     )
 
     if not cached:
+        require_vector_store()
+
         answer = ask(
             payload.question,
             university_name=payload.university_name
         )
 
-        store_answer(
-            cache_key,
-            payload.question,
-            [payload.university_name],
-            answer
-        )
+        if answer != NO_REVIEWS_ANSWER:
+            store_answer(
+                cache_key,
+                payload.question,
+                [payload.university_name],
+                answer
+            )
 
     return {
         "question": payload.question,
@@ -261,6 +278,8 @@ def compare_universities(request: Request, payload: CompareRequest):
     )
 
     if not cached:
+        require_vector_store()
+
         answer = compare(
             payload.question,
             payload.university_names
