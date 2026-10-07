@@ -214,6 +214,45 @@ Böyle bir durumda Vercel → **Deployments** kısmında son commit'in yeni bir
 deployment üretip üretmediğine bakılır; üretmediyse GitHub bağlantısı,
 "Ready" değilse build hatası incelenir.
 
+## Canlı izleme
+
+Hepsi opsiyonel: ilgili ortam değişkeni boşsa o servis hiç başlatılmaz.
+
+| Ne | Servis | Nerede ayarlanır |
+|---|---|---|
+| Ziyaretçi/sayfa görüntüleme | Vercel Analytics | Vercel → proje → **Analytics** → Enable |
+| Frontend hataları | Sentry | Vercel: `VITE_SENTRY_DSN` |
+| Backend hataları | Sentry | Render: `SENTRY_DSN` |
+| Olaylar + oturum kaydı | PostHog | Vercel: `VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST` |
+| OpenAI token kullanımı | `llm_usage` tablosu + PostHog | Render: `POSTHOG_API_KEY`, `POSTHOG_HOST` |
+
+`VITE_*` değişkenleri build sırasında gömülür; Vercel'de ekledikten sonra
+**yeniden deploy** gerekir.
+
+### OpenAI harcaması nereden geliyor?
+
+Her OpenAI çağrısı (`usage_tracking.py`) `llm_usage` tablosuna
+özellik bazında yazılır:
+
+| `feature` | Ne zaman |
+|---|---|
+| `ask` / `compare` | Önbellekte olmayan her soru (asıl maliyet) |
+| `query_embedding` | Her soruda soru metninin embedding'i (çok ucuz) |
+| `index_embedding` | Backend açılışında vector store'a yeni yorum eklenirken |
+| `review_cleaner` | Toplu temizlik betiği yerelde çalıştırıldığında |
+
+Özet rapor (`.env`'deki veritabanına bağlanır):
+
+```bash
+python -m usage_tracking      # son 7 gün
+python -m usage_tracking 1    # son 24 saat
+```
+
+Aynı veri PostHog'da **LLM analytics** ekranında `$ai_generation` olayı
+olarak görünür ve ziyaretçinin oturum kaydıyla eşleşir. `answer_served`
+olayının `cached` alanı, önbelleğin ne kadar işe yaradığını gösterir.
+Dolar karşılığı için platform.openai.com/usage kullanılır.
+
 ## Veri toplama pipeline'ı
 
 Her adım ayrı ayrı, elle çalıştırılır (henüz tek bir otomatik script yok):

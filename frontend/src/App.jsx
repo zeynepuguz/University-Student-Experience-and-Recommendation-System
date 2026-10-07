@@ -2,11 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import universitiesSnapshot from "./universities.json";
 import stats from "./stats.json";
-
-// Prod'da .env.production içindeki VITE_API_URL kullanılır.
-// Yoksa yerel backend'e düşer.
-const API_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { API_URL } from "./api.js";
+import { clientIdHeader, track } from "./monitoring.js";
 
 // Üniversite listesi build'e gömülü geliyor.
 // Backend'den de arka planda güncel liste çekiliyor.
@@ -503,13 +500,17 @@ function App() {
     setError(null);
     setAnswer(null);
 
+    const startedAt = performance.now();
+    let status = 0;
+
     try {
       const response = await fetch(
         `${API_URL}/ask`,
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            ...clientIdHeader()
           },
           body: JSON.stringify({
             question,
@@ -519,6 +520,8 @@ function App() {
         }
       );
 
+      status = response.status;
+
       if (!response.ok) {
         throw new Error("Sunucu hatası");
       }
@@ -526,7 +529,18 @@ function App() {
       const data = await response.json();
 
       setAnswer(data.answer);
+
+      track("answer_received", {
+        mode: "ask",
+        university: universityName || null,
+        cached: data.cached,
+        duration_ms: Math.round(performance.now() - startedAt)
+      });
     } catch {
+      // status 0: ağ hatası / backend'e hiç ulaşılamadı;
+      // 429: rate limit'e takıldı.
+      track("answer_failed", { mode: "ask", status });
+
       setError(
         "Bir şeyler ters gitti. Backend çalışıyor mu kontrol et."
       );
@@ -557,13 +571,17 @@ function App() {
     setError(null);
     setAnswer(null);
 
+    const startedAt = performance.now();
+    let status = 0;
+
     try {
       const response = await fetch(
         `${API_URL}/compare`,
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            ...clientIdHeader()
           },
           body: JSON.stringify({
             question: compareQuestion,
@@ -575,6 +593,8 @@ function App() {
         }
       );
 
+      status = response.status;
+
       if (!response.ok) {
         throw new Error("Sunucu hatası");
       }
@@ -582,7 +602,16 @@ function App() {
       const data = await response.json();
 
       setAnswer(data.answer);
+
+      track("answer_received", {
+        mode: "compare",
+        universities: [universityA, universityB],
+        cached: data.cached,
+        duration_ms: Math.round(performance.now() - startedAt)
+      });
     } catch {
+      track("answer_failed", { mode: "compare", status });
+
       setError(
         "Bir şeyler ters gitti. Backend çalışıyor mu kontrol et."
       );

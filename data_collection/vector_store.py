@@ -1,10 +1,12 @@
 import os
 import json
+import time
 
 import chromadb
 from openai import OpenAI
 from dotenv import load_dotenv
 
+import usage_tracking
 from database import get_connection
 
 
@@ -118,15 +120,20 @@ def load_documents_from_db():
     return documents
 
 
-def embed_texts(texts):
+def embed_texts(texts, feature="index_embedding"):
     """
     Bir metin listesini tek bir API çağrısında embedding'e çevirir.
+    `feature`, kullanım kaydında çağrının nereden geldiğini belirtir.
     """
+
+    started_at = time.monotonic()
 
     response = client.embeddings.create(
         model=EMBEDDING_MODEL,
         input=texts
     )
+
+    usage_tracking.record(feature, EMBEDDING_MODEL, response, started_at)
 
     return [item.embedding for item in response.data]
 
@@ -278,7 +285,10 @@ def query_vector_store(query_text, university_name=None, n_results=5):
 
     collection = get_collection()
 
-    query_embedding = embed_texts([query_text])[0]
+    query_embedding = embed_texts(
+        [query_text],
+        feature="query_embedding"
+    )[0]
 
     where = (
         {"university_name": university_name}

@@ -2,12 +2,14 @@ import os
 import asyncio
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+import usage_tracking
 from database import get_connection
 from answer_cache import (
     build_key,
@@ -18,6 +20,35 @@ from answer_cache import (
 from schemas import UniversityCreate, ReviewCreate, AskRequest, CompareRequest
 from data_collection.rag import ask, compare
 from data_collection.vector_store import ensure_vector_store_ready
+
+
+# Hata takibi: SENTRY_DSN tanımlıysa yakalanmayan her hata (500'ler,
+# OpenAI/veritabanı hataları) Sentry'ye gider. FastAPI uygulaması
+# oluşturulmadan önce başlatılmalı. Tanımlı değilse (yerelde) hiçbir
+# şey yapmaz.
+if os.getenv("SENTRY_DSN"):
+    sentry_sdk.init(
+        dsn=os.getenv("SENTRY_DSN"),
+        environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
+        # İsteklerin %20'si için performans (süre) verisi.
+        traces_sample_rate=float(
+            os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.2")
+        ),
+        # IP ve başlık gibi kişisel veriler gönderilmiyor.
+        send_default_pii=False,
+    )
+
+
+def remember_visitor(request: Request):
+    """
+    Frontend'in X-Client-Id başlığında gönderdiği PostHog kimliğini
+    kullanım kaydına bağlar; böylece token harcaması ziyaretçi
+    bazında görülebiliyor.
+    """
+
+    visitor = request.headers.get("x-client-id")
+
+    usage_tracking.client_id.set(visitor[:100] if visitor else None)
 
 
 @asynccontextmanager
@@ -181,11 +212,19 @@ def create_review(review: ReviewCreate):
 @app.post("/ask")
 @limiter.limit(ASK_RATE_LIMIT)
 def ask_question(request: Request, payload: AskRequest):
+    remember_visitor(request)
+
     cache_key = build_key(payload.question, [payload.university_name])
 
     answer = get_cached_answer(cache_key)
+    cached = answer is not None
 
-    if answer is None:
+    usage_tracking.capture(
+        "answer_served",
+        {"feature": "ask", "cached": cached}
+    )
+
+    if not cached:
         answer = ask(
             payload.question,
             university_name=payload.university_name
@@ -201,18 +240,27 @@ def ask_question(request: Request, payload: AskRequest):
     return {
         "question": payload.question,
         "university_name": payload.university_name,
-        "answer": answer
+        "answer": answer,
+        "cached": cached
     }
 
 
 @app.post("/compare")
 @limiter.limit(ASK_RATE_LIMIT)
 def compare_universities(request: Request, payload: CompareRequest):
+    remember_visitor(request)
+
     cache_key = build_key(payload.question, payload.university_names)
 
     answer = get_cached_answer(cache_key)
+    cached = answer is not None
 
-    if answer is None:
+    usage_tracking.capture(
+        "answer_served",
+        {"feature": "compare", "cached": cached}
+    )
+
+    if not cached:
         answer = compare(
             payload.question,
             payload.university_names
@@ -228,7 +276,8 @@ def compare_universities(request: Request, payload: CompareRequest):
     return {
         "question": payload.question,
         "university_names": payload.university_names,
-        "answer": answer
+        "answer": answer,
+        "cached": cached
     }
 
 

@@ -1,8 +1,10 @@
 import os
+import time
 
 from openai import OpenAI
 from dotenv import load_dotenv
 
+import usage_tracking
 from data_collection.vector_store import query_vector_store
 
 
@@ -74,6 +76,8 @@ def ask(question, university_name=None, n_results=8):
 
     context = build_context(results)
 
+    started_at = time.monotonic()
+
     response = client.chat.completions.create(
         model=ANSWER_MODEL,
         messages=[
@@ -88,6 +92,8 @@ def ask(question, university_name=None, n_results=8):
             }
         ]
     )
+
+    usage_tracking.record("ask", ANSWER_MODEL, response, started_at)
 
     return response.choices[0].message.content
 
@@ -138,6 +144,8 @@ def compare(question, university_names, n_results_per_university=6):
 
     context = "\n\n".join(sections)
 
+    started_at = time.monotonic()
+
     response = client.chat.completions.create(
         model=ANSWER_MODEL,
         messages=[
@@ -151,6 +159,8 @@ def compare(question, university_names, n_results_per_university=6):
             }
         ]
     )
+
+    usage_tracking.record("compare", ANSWER_MODEL, response, started_at)
 
     return response.choices[0].message.content
 

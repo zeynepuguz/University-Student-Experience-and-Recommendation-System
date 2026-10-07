@@ -1,10 +1,12 @@
 import os
 import json
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from openai import OpenAI
 from dotenv import load_dotenv
 
+import usage_tracking
 from database import get_connection
 
 
@@ -127,6 +129,8 @@ def classify_batch(reviews):
         for review_id, review_text in reviews
     ]
 
+    started_at = time.monotonic()
+
     response = client.chat.completions.create(
         model=MODEL,
         messages=[
@@ -145,6 +149,8 @@ def classify_batch(reviews):
             }
         }
     )
+
+    usage_tracking.record("review_cleaner", MODEL, response, started_at)
 
     content = response.choices[0].message.content
 
