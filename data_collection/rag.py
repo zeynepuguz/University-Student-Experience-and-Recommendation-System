@@ -15,8 +15,8 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 ANSWER_MODEL = "gpt-5.6-terra"
 
 # Hiç ilgili yorum bulunamadığında modele gidilmeden dönen cevap.
-# main.py bunu önbelleğe yazmıyor: yorum havuzu büyüdükçe ya da vector
-# store kurulumu bitince aynı soru gerçek bir cevap alabilir.
+# main.py bunu önbelleğe yazmıyor: yorum havuzu büyüdükçe aynı soru
+# gerçek bir cevap alabilir.
 NO_REVIEWS_ANSWER = "Bu konuda elimde yeterli yorum bulunmuyor."
 
 SYSTEM_PROMPT = """

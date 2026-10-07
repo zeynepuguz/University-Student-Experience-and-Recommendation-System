@@ -34,7 +34,7 @@ LLM ile Temizlik (is_useful sınıflandırması — gpt-5.6-luna)
 Export (.jsonl, LangChain Document formatı)
         │
         ▼
-Embedding (text-embedding-3-small) + ChromaDB (kalıcı vector store)
+Embedding (text-embedding-3-small) + pgvector (Neon'da kalıcı)
         │
         ▼
 RAG Sorgu (gpt-5.6-terra) — FastAPI backend
@@ -76,9 +76,9 @@ UniGuideAI/
 │   ├── review_cleaner.py  # LLM ile is_useful sınıflandırması
 │   ├── export_frontend_data.py # üniversite listesi + veri sayılarını frontend'e gömer
 │   ├── console.py         # konsol çıktısını UTF-8'e sabitler
-│   ├── vector_store.py    # embedding + ChromaDB
+│   ├── vector_store.py    # embedding + pgvector araması
 │   ├── rag.py              # RAG sorgu/karşılaştırma fonksiyonları
-│   ├── chroma_db/          # (gitignore'da) kalıcı vector store
+│   ├── migrate_chroma_to_pgvector.py # eski yerel ChromaDB'den tek seferlik taşıma
 │   └── exports/            # (gitignore'da) reviews.jsonl
 │
 ├── discovery/
@@ -152,7 +152,7 @@ Proje ücretsiz katmanlarla canlıya alınabilecek şekilde tasarlandı:
 | Katman | Servis | Not |
 |---|---|---|
 | Veritabanı | [Neon](https://neon.tech) | Ücretsiz PostgreSQL, scale-to-zero |
-| Backend | [Render](https://render.com) (free web service) | Kalıcı disk yok — vector store, açılışta veritabanından otomatik yeniden kurulur (`ensure_vector_store_ready()`, bkz. `main.py`) |
+| Backend | [Render](https://render.com) (free web service) | Kalıcı disk gerekmez — embedding'ler Neon'da (`review_embeddings`, pgvector); açılışta sadece yeni yorumlar embed edilir (`ensure_vector_store_ready()`, bkz. `main.py`) |
 | Frontend | [Vercel](https://vercel.com) | Vite projelerini otomatik algılar |
 
 **Önemli — maliyet koruması:** `/ask` ve `/compare` her çağrıda gerçek
@@ -187,10 +187,15 @@ OpenAI ücreti doğuruyor (soru başına yaklaşık 1 cent).
 3. Vercel'de `frontend/` klasörünü bir proje olarak içe aktar,
    `VITE_API_URL=<render-backend-adresin>` ortam değişkenini ekle.
 
-İlk istek, backend uykudan uyanıp vector store'u yeniden kurarken
-(~1-3 dakika) yavaş olabilir; sonraki istekler normal hızda çalışır.
 `.github/workflows/keep-alive.yml` backend'i 10 dakikada bir dürterek
-uykuya dalmasını engelliyor, yani bu bekleme normalde yaşanmamalı.
+uykuya dalmasını engelliyor; uyanma beklemesi normalde yaşanmamalı.
+
+Embedding'ler eskiden backend içindeki ChromaDB'de tutuluyordu. Render'da
+kalıcı disk olmadığı için her açılışta ~22.800 yorum baştan embed
+ediliyor (~2,7 milyon token), bellek 512 MB'ı aşınca servis çöküp
+döngüye giriyordu. Yeni bir ortama taşırken embedding'ler yerel
+ChromaDB'den OpenAI'a gitmeden kopyalanabilir:
+`python -m data_collection.migrate_chroma_to_pgvector`.
 
 ### Sorun giderme: üniversite listesi geç geliyorsa
 
@@ -238,7 +243,7 @@ Her OpenAI çağrısı (`usage_tracking.py`) `llm_usage` tablosuna
 |---|---|
 | `ask` / `compare` | Önbellekte olmayan her soru (asıl maliyet) |
 | `query_embedding` | Her soruda soru metninin embedding'i (çok ucuz) |
-| `index_embedding` | Backend açılışında vector store'a yeni yorum eklenirken |
+| `index_embedding` | Yeni eklenen yorumların embedding'i (açılışta, sadece eksikler) |
 | `review_cleaner` | Toplu temizlik betiği yerelde çalıştırıldığında |
 
 Özet rapor (`.env`'deki veritabanına bağlanır):
@@ -272,7 +277,7 @@ python -m data_collection.review_cleaner
 # 4. RAG için export et
 python -c "from data_collection.review_collector import export_reviews_for_rag; export_reviews_for_rag()"
 
-# 5. Vector store'u güncelle (embed + ChromaDB'ye ekle, resume destekli)
+# 5. Yeni yorumları embed et (embedding'i olmayanlar; backend açılışta da yapar)
 python -m data_collection.vector_store
 ```
 

@@ -3,7 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 
 import sentry_sdk
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -19,7 +19,7 @@ from answer_cache import (
 )
 from schemas import UniversityCreate, ReviewCreate, AskRequest, CompareRequest
 from data_collection.rag import ask, compare, NO_REVIEWS_ANSWER
-from data_collection.vector_store import ensure_vector_store_ready, is_ready
+from data_collection.vector_store import ensure_vector_store_ready
 
 
 # Hata takibi: SENTRY_DSN tanımlıysa yakalanmayan her hata (500'ler,
@@ -51,28 +51,14 @@ def remember_visitor(request: Request):
     usage_tracking.client_id.set(visitor[:100] if visitor else None)
 
 
-def require_vector_store():
-    """
-    Açılıştaki vector store kurulumu bitmeden önbellekte olmayan bir
-    soruya cevap üretilmiyor: yorumları henüz eklenmemiş üniversiteler
-    için "yeterli yorum yok" gibi yanlış bir cevap çıkıyordu.
-    """
-
-    if not is_ready():
-        raise HTTPException(
-            status_code=503,
-            detail="Asistan hazırlanıyor, 1-2 dakika sonra tekrar dene."
-        )
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Kalıcı disk olmayan ortamlarda (örn. ücretsiz hosting) vector
-    # store'u veritabanından yeniden kurar; doluysa dokunmaz.
+    # Veritabanına sonradan eklenen yorumların embedding'lerini
+    # tamamlar (normalde eksik yoktur ve OpenAI'a gidilmez).
     #
-    # Arka planda (ayrı bir thread'de) çalıştırılıyor ki bu işlem
-    # (birkaç dakika sürebiliyor) uygulamanın portu açmasını
-    # bloklamasın — yoksa Render'ın port taraması zaman aşımına uğrar.
+    # Arka planda (ayrı bir thread'de) çalıştırılıyor ki çok sayıda
+    # yeni yorum varsa uygulamanın portu açmasını bloklamasın — yoksa
+    # Render'ın port taraması zaman aşımına uğrar.
     ensure_table()
 
     asyncio.create_task(asyncio.to_thread(ensure_vector_store_ready))
@@ -239,8 +225,6 @@ def ask_question(request: Request, payload: AskRequest):
     )
 
     if not cached:
-        require_vector_store()
-
         answer = ask(
             payload.question,
             university_name=payload.university_name
@@ -278,8 +262,6 @@ def compare_universities(request: Request, payload: CompareRequest):
     )
 
     if not cached:
-        require_vector_store()
-
         answer = compare(
             payload.question,
             payload.university_names
